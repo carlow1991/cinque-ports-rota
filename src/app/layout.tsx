@@ -16,7 +16,14 @@ export const viewport: Viewport = {
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html lang="en-GB" className="h-full antialiased">
-      <body className="min-h-full flex flex-col">{children}</body>
+      <body className="min-h-full flex flex-col">
+        <noscript>
+          <p style={{ padding: 16, background: "#fff3cd", color: "#111827", fontWeight: 600 }}>
+            The volunteer rota needs JavaScript. Please turn it on in your browser settings, or use a different browser.
+          </p>
+        </noscript>
+        {children}
+      </body>
     </html>
   );
 }

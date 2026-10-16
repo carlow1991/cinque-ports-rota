@@ -234,14 +234,14 @@ Q1 repository and build location · Q2 timings not given in the Catalogue · Q3 
 - [x] `docs/permissions-matrix.md`, `docs/test-report-phase-2.md`
 - [x] Tests: 148 database (incl. 8 real-concurrency) + 42 unit = 190 passing; mutation-checked
 
-### Phase 3 — Event administration
-- [ ] Venues/teams CRUD; duty types/templates admin
-- [ ] Seed T01–T09 exactly
-- [ ] Event builder, preview, optional toggles, publish validation
-- [ ] Coverage linking + full-window warnings
-- [ ] Calendar with overlapping events
-- [ ] DEMO seed (dev only, email off)
-- [ ] Tests: T01 = 5 rows / 8 slots; T03 linked = no site lead; T09 = 1 composite; disabled = 0 rows; DST/cross-midnight; commit
+### Phase 3 — Event administration ✅ (17 Oct 2026, awaiting review)
+- [x] T01–T09 seeded exactly (`…000700`); idempotent, non-destructive
+- [x] `create_event` (atomic), `apply_template` (idempotent), `add_shift`, `link_venue_cover`, `manage_events_overview` (`…000800`); template admin RPCs (`…000900`)
+- [x] UK time handling (DST gap/overlap, cross-midnight) + template expansion in TypeScript, cross-checked against the database for all nine templates
+- [x] Screens: dashboard (7 days), venue calendar (overlaps, filters), event builder with live preview and optional toggles, event page (publish, cover status with exact gaps, link cover, edit/remove/add duties, reschedule, details), templates (view/edit), settings (venues, teams, duties, rota rules)
+- [x] Dev-only DEMO seed (`supabase/seed.sql`), email hard-off
+- [x] Tests: 251 unit + database passing; 25/25 phone-width end-to-end checks (×2 runs)
+- [x] Required assertions: T01+gate+tea = 5 rows / 8 slots; T03 linked to confirmed lead = no site-lead row; T09 = 1 composite row; disabled optional = no rows
 
 ### Phase 4 — Volunteer portal
 - [ ] Rota, event detail, My Duties, Profile

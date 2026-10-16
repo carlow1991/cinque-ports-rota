@@ -28,9 +28,12 @@ export default function LoginPage({ searchParams }: PageProps<"/login">) {
           <p className="mb-4 text-sm text-ink-muted">
             The rota is for invited club volunteers. We&apos;ll email you a one-time code, so there&apos;s no password to remember.
           </p>
-          <Suspense fallback={<LoginForm />}>
-            <LoginFormWithError searchParams={searchParams} />
+          {/* The error notice depends on the URL and streams in separately; the form itself is part of
+              the static page so a tap before JavaScript has loaded still works (progressive enhancement). */}
+          <Suspense fallback={null}>
+            <LinkError searchParams={searchParams} />
           </Suspense>
+          <LoginForm />
         </section>
 
         <p className="mt-6 text-center text-sm text-ink-muted">
@@ -41,8 +44,13 @@ export default function LoginPage({ searchParams }: PageProps<"/login">) {
   );
 }
 
-async function LoginFormWithError({ searchParams }: { searchParams: PageProps<"/login">["searchParams"] }) {
+async function LinkError({ searchParams }: { searchParams: PageProps<"/login">["searchParams"] }) {
   const sp = await searchParams;
-  const key = typeof sp.error === "string" ? sp.error : undefined;
-  return <LoginForm initialError={key ? ERRORS[key] : undefined} />;
+  const message = typeof sp.error === "string" ? ERRORS[sp.error] : undefined;
+  if (!message) return null;
+  return (
+    <p role="alert" className="mb-4 rounded-lg border border-danger/30 bg-red-50 p-3 text-sm font-medium text-danger">
+      {message}
+    </p>
+  );
 }

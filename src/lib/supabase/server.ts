@@ -1,6 +1,7 @@
 import "server-only";
 import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
+import { connection } from "next/server";
 import { publicEnv } from "@/lib/env";
 
 /**
@@ -9,6 +10,9 @@ import { publicEnv } from "@/lib/env";
  * Create a new one per request; never store it in a module-level variable.
  */
 export async function createClient() {
+  // Everything using a user session is request-time only: never prerendered or shared between
+  // visitors. (Also required because the auth client reads the clock as soon as it is created.)
+  await connection();
   const cookieStore = await cookies();
   const { supabaseUrl, supabaseKey } = publicEnv();
 

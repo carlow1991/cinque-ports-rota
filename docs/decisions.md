@@ -116,3 +116,17 @@ A venue-specific template is only offered for events at that venue.
 - **D-211 Last-admin guard.** The last active administrator can't be demoted or suspended.
 - **D-212 Sign-up rate limit.** A volunteer is limited to 20 assignment changes per minute, as basic abuse protection.
 - **D-213 No physical deletes** of events, shifts or assignments for any app user. Cancel instead, so history is kept.
+
+## Phase 3 decisions (16–17 Oct 2026)
+
+- **D-301 Templates T01–T09** are seeded exactly from the catalogue. Timings the catalogue leaves open use the Q2/Q3 defaults. The seed is idempotent and **non-destructive**: re-running never overwrites an admin's later edits.
+- **D-302 Linked cover suppresses, never duplicates.** Template site-lead items are marked "not created when linked". Linking later via `link_venue_cover()` removes an **uncommitted** generated lead duty and **keeps** one with people on it (reported back to the organiser). Linking is not shown as cover: the event shows "at risk" with exact uncovered times until a confirmed, authorised lead covers the whole window.
+- **D-303 Event creation is atomic** (`create_event()`): the draft and all its generated duties are created together, or not at all.
+- **D-304 Template application is idempotent.** An item already generated on an event is never generated again. Switching on more optional duties later adds only those. Editing or deleting a template never changes existing events.
+- **D-305 UK time.** Organisers type UK wall-clock times. Each time is converted to an exact instant once, on the server. A time inside the spring-forward gap is rejected with an explanation. The repeated hour in autumn uses the first (BST) occurrence and is flagged. An end time earlier than the start means the next day. Template offsets are real elapsed minutes, so a duty 75 minutes before kick-off is 75 real minutes even across a clock change.
+- **D-306 Demo data** lives only in `supabase/seed.sql`, which the Supabase CLI loads into **local** databases only. It refuses to run if real events exist, and every demo event is `is_demo` with a "DEMO" title. The app itself can no longer set `is_demo`, so an organiser can't accidentally suppress real emails.
+- **D-307 Links change only via `link_venue_cover()`.** The direct column update was revoked.
+- **D-308 Template admin** uses `admin_update_template_item()` (item + included duties atomically) and `admin_add_template_item()`.
+- **D-309 Buttons wait for the page to be ready.** Sign-in and organiser buttons show "Loading…" until the page is interactive, so a tap on a slow phone is never silently lost. The app requires JavaScript, and a message says so if it's off.
+- **D-310 Personal pages are always rendered per request** (`connection()` in the Supabase server client). Nothing user-specific is prerendered or shared.
+- **D-311 End-to-end checks** use a test-only stand-in for Supabase's auth and data API (`tests/e2e/support/fake-supabase.mts`), running against real Postgres with real RLS, because the Supabase Docker images can't be downloaded in the build workspace. It is never used in production, and the real Supabase project should be smoke-tested at Phase 7.

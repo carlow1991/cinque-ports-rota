@@ -1,16 +1,15 @@
 "use client";
 
 import { useActionState, useEffect, useRef } from "react";
+import { useHydrated } from "@/lib/use-hydrated";
 import { loginAction } from "./actions";
 import type { LoginState } from "./schema";
 
 const initial: LoginState = { step: "email" };
 
-export function LoginForm({ initialError }: { initialError?: string }) {
-  const [state, formAction, pending] = useActionState(loginAction, {
-    ...initial,
-    error: initialError,
-  } as LoginState);
+export function LoginForm() {
+  const [state, formAction, pending] = useActionState(loginAction, initial);
+  const ready = useHydrated();
 
   const codeInput = useRef<HTMLInputElement>(null);
   useEffect(() => {
@@ -50,10 +49,10 @@ export function LoginForm({ initialError }: { initialError?: string }) {
         </div>
         <button
           type="submit"
-          disabled={pending}
+          disabled={pending || !ready}
           className="w-full rounded-lg bg-club px-4 py-3 text-base font-semibold text-white hover:bg-club-hover disabled:opacity-60"
         >
-          {pending ? "Checking…" : "Sign in"}
+          {!ready ? "Loading…" : pending ? "Checking…" : "Sign in"}
         </button>
         <p className="text-sm text-ink-muted">
           You can also tap the link in the email. Wrong address or no email?{" "}
@@ -98,10 +97,10 @@ export function LoginForm({ initialError }: { initialError?: string }) {
       </div>
       <button
         type="submit"
-        disabled={pending}
+        disabled={pending || !ready}
         className="w-full rounded-lg bg-club px-4 py-3 text-base font-semibold text-white hover:bg-club-hover disabled:opacity-60"
       >
-        {pending ? "Sending…" : "Email me a sign-in code"}
+        {!ready ? "Loading…" : pending ? "Sending…" : "Email me a sign-in code"}
       </button>
     </form>
   );

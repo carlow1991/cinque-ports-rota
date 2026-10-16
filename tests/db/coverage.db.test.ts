@@ -58,11 +58,13 @@ describe("coverage links: same venue, no cycles", () => {
     await expect(db.admin.query("update events set event_type = 'fixture' where id = $1", [c])).rejects.toThrow(/coverage_event_has_dependents/);
   });
 
-  it("a coordinator's direct link edit is validated the same way", async () => {
+  it("a coordinator's link edit is validated the same way (and only via the RPC)", async () => {
     const coverMW = await makeEvent(db, { venue: mw, type: "venue_coverage", start: inHours(50), end: inHours(60) });
     const fixtureFW = await makeEvent(db, { venue: fw, start: inHours(51), end: inHours(52) });
+    await expectCode(rpc(db, coord, "link_venue_cover", [fixtureFW, coverMW]), "coverage_link_other_venue");
+    // Direct column edits are no longer allowed: links change only through link_venue_cover().
     await expect(db.asUser(coord.uid, (c) => c.query("update events set coverage_event_id = $2 where id = $1", [fixtureFW, coverMW])))
-      .rejects.toThrow(/coverage_link_other_venue/);
+      .rejects.toThrow(/permission denied/);
   });
 });
 
