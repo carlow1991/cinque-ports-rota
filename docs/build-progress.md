@@ -223,13 +223,16 @@ Q1 repository and build location · Q2 timings not given in the Catalogue · Q3 
 - [x] `docs/setup.md` (dashboard settings, email templates, first-admin invite)
 - [ ] Carl: apply migration + dashboard settings, invite himself, sign in on his phone
 
-### Phase 2 — Database & authorisation
-- [ ] Enums, tables, constraints, indexes, triggers (coverage link guard)
-- [ ] RLS on all tables; column-limited grants
-- [ ] Narrow RPCs with lock ordering, audit and outbox writes
-- [ ] Seed 2 venues + exactly 9 duty types (idempotent)
-- [ ] Tests: concurrency, overlap, role elevation, expiry, cancel, reschedule, transitions, anon, venue scope
-- [ ] Permissions matrix + test report; commit
+### Phase 2 — Database & authorisation ✅ (16 Oct 2026, awaiting review)
+- [x] Enums, all V1 tables, constraints, indexes (`…000200`); integrity triggers (`…000300`)
+- [x] Coverage-link guard: same venue, coverage-type target, no self/chains (cycle-proof)
+- [x] Normalised composite responsibilities (template + shift), never repeating the primary duty
+- [x] Provider-cover fields with admin, note and timestamp, enforced by CHECK
+- [x] RLS on all 17 tables, deny-by-default grants, column-limited updates (`…000400`)
+- [x] 19 narrow RPCs + 4 safe read functions; volunteer→shift lock order; outbox + audit in-transaction (`…000500`)
+- [x] Seed: 2 venues, exactly 9 duty types, settings; idempotent (`…000600`)
+- [x] `docs/permissions-matrix.md`, `docs/test-report-phase-2.md`
+- [x] Tests: 148 database (incl. 8 real-concurrency) + 42 unit = 190 passing; mutation-checked
 
 ### Phase 3 — Event administration
 - [ ] Venues/teams CRUD; duty types/templates admin

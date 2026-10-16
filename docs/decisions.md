@@ -100,3 +100,19 @@ A venue-specific template is only offered for events at that venue.
 - **D-107 Bootstrap invites.** Until the Phase 5 volunteer screen exists, admins are invited with `scripts/invite-volunteer.mts` on a trusted machine.
 - **D-108 Branding.** **AGREED 16 Oct 2026:** the club colours are navy `#2a426f` (primary), blue `#0038c1` (links and hover) and orange `#f25c05`. Orange is used for **accents only** (header stripe, active tab, focus rings, badge ring), because it is 3.3:1 against white and fails WCAG for small text. Navy and blue pass at about 9 to 10:1 with white. The official badge is in `public/club-badge.png` and is also used for the app and home-screen icons (`src/app/icon.png`, `apple-icon.png`). Colours change in one place: `src/app/globals.css`.
 - **D-109 Login rate-limiting.** This relies on Supabase Auth's built-in OTP limits (per address and per IP) for Phase 1. App-level limits for signup writes are added with the RPCs in Phase 2.
+
+## Phase 2 decisions (16 Oct 2026)
+
+- **D-201 Schema additions (Q8 applied).** Added `venues.code`, `duty_templates.code`, `duty_template_items.instructions` / `suppressed_by_linked_cover` / `sort_order`, `events.instructions` / `site_responsibility` / `is_demo` / `external_cover_verified_at` / `status_reason`, `event_shifts.source_template_item_id`, `assignments.status_changed_at` / `removal_reason`, and `volunteers.preferred_venue_id`. Also added a `shift_status` enum (`active`, `cancelled`) and a `cancellation_request_status` enum.
+- **D-202 `notification_status` gains `suppressed`.** This is beyond the spec's four values. It marks messages that must never be sent: demo data, and reminders for commitments that were cancelled or are being reconfirmed.
+- **D-203 Cycle-proof links.** A `venue_coverage` event may not itself link to another event, so links are always exactly one step and a cycle is impossible. The link must be to a **different** event at the **same** venue. A coverage event with dependants cannot change venue or type.
+- **D-204 Restricted duties are a hard gate (Q6 applied).** An authorisation must be active and valid **until the shift ends**, for the primary duty **and every restricted included duty** (Q4). `approval_required` is separate, and defaults to off.
+- **D-205 Invitations require eligibility and a published or postponed event.** Organisers can't invite someone who lacks the authorisation, and no emails go out for draft events.
+- **D-206 Lowering headcount below committed volunteers is refused** (`below_committed`). Nobody is ever silently dropped. An organiser must remove someone first, with a reason.
+- **D-207 Rescheduling.** Shifts generated from a template item are re-anchored to the new start and end (for example, cleaning follows the end). Hand-made shifts move by the start delta. Every active commitment returns to `invited` and must reconfirm, and pending places are freed.
+- **D-208 Roster visibility.** A volunteer sees confirmed **names** on a published event only if they are themselves on that event. Organisers see rosters for their venues. Email and phone are never included.
+- **D-209 Site-cover states.** `not_required`, `covered_by_provider`, `covered_by_volunteer`, `at_risk` (an arrangement exists but has gaps) and `no_cover`. Cover counts only confirmed, active and fully authorised site leads, across the agreed window (Q5).
+- **D-210 Publishing** needs at least one duty plus an explicit site-cover decision whenever the club is responsible for the site.
+- **D-211 Last-admin guard.** The last active administrator can't be demoted or suspended.
+- **D-212 Sign-up rate limit.** A volunteer is limited to 20 assignment changes per minute, as basic abuse protection.
+- **D-213 No physical deletes** of events, shifts or assignments for any app user. Cancel instead, so history is kept.

@@ -21,7 +21,7 @@ npx supabase login
 npx supabase link --project-ref <your-project-ref>
 npx supabase db push
 ```
-Or paste `supabase/migrations/20261016000100_volunteers_foundation.sql` into the dashboard SQL editor and run it **once**.
+Or paste **each** file in `supabase/migrations/` into the dashboard SQL editor, **in filename order**, running each **once**.
 
 ## 3. Supabase Auth settings (dashboard)
 1. **Turn off public sign-ups**: under Authentication sign-in settings, disable *Allow new users to sign up*. The app is invite-only, and the login form also enforces this with `shouldCreateUser: false`.
