@@ -212,14 +212,16 @@ Q1 repository and build location · Q2 timings not given in the Catalogue · Q3 
 - [ ] Private GitHub repo created by Carl and Phase 0 pushed
 - [ ] Q2, Q3, Q6–Q10 — proposed defaults stand unless Carl changes them
 
-### Phase 1 — Foundation & invitation-only login
-- [ ] Scaffold Next.js + TS strict + Tailwind (current versions verified)
-- [ ] Supabase SSR server/client/middleware helpers
-- [ ] Minimal `volunteers` migration + link function
-- [ ] `/login` branded OTP; `/auth/callback` verified-email link
-- [ ] Route guards: inactive, uninvited, role, server-side
-- [ ] Tests: inactive / uninvited / forged role / `/manage` denial
-- [ ] Lint, typecheck, tests run and output reported; commit
+### Phase 1 — Foundation & invitation-only login ✅ (16 Oct 2026, awaiting review)
+- [x] Scaffold Next.js 16.4 + TS strict + Tailwind 4 (versions verified against npm on 16 Oct 2026)
+- [x] Supabase SSR server/browser clients + `src/proxy.ts` session refresh
+- [x] Minimal `volunteers` migration, `link_volunteer_account()`, identity helpers, RLS + column grants
+- [x] `/login` branded two-step OTP (code or link); `/auth/callback` verified-email link; POST-only sign-out
+- [x] Server-side guards on every protected page: inactive / uninvited / role
+- [x] Tests: 20 database (real Postgres 16, RLS) + 42 unit/server-enforcement = 62 passing; mutation-checked
+- [x] Lint, typecheck, production build clean; 375px check (no overflow, keyboard focus, errors keep input)
+- [x] `docs/setup.md` (dashboard settings, email templates, first-admin invite)
+- [ ] Carl: apply migration + dashboard settings, invite himself, sign in on his phone
 
 ### Phase 2 — Database & authorisation
 - [ ] Enums, tables, constraints, indexes, triggers (coverage link guard)

@@ -1,0 +1,48 @@
+@import "tailwindcss";
+
+/*
+ * Club colour tokens. Placeholder navy/amber until the club confirms official colours and crest.
+ * Change them here only; components use the semantic names.
+ */
+:root {
+  --club-primary: #12305a;
+  --club-primary-hover: #0c2343;
+  --club-accent: #f2b705;
+  --surface: #ffffff;
+  --surface-muted: #f3f5f8;
+  --ink: #111827;
+  --ink-muted: #4b5563;
+  --line: #d6dbe3;
+  --danger: #b42318;
+  --ok: #1d7a43;
+}
+
+@theme inline {
+  --color-club: var(--club-primary);
+  --color-club-hover: var(--club-primary-hover);
+  --color-accent: var(--club-accent);
+  --color-surface: var(--surface);
+  --color-surface-muted: var(--surface-muted);
+  --color-ink: var(--ink);
+  --color-ink-muted: var(--ink-muted);
+  --color-line: var(--line);
+  --color-danger: var(--danger);
+  --color-ok: var(--ok);
+  --font-sans: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+}
+
+html {
+  -webkit-text-size-adjust: 100%;
+}
+
+body {
+  background: var(--surface-muted);
+  color: var(--ink);
+  font-family: var(--font-sans);
+}
+
+/* Visible focus for keyboard users on every interactive element. */
+:where(a, button, input, select, textarea, summary):focus-visible {
+  outline: 3px solid var(--club-accent);
+  outline-offset: 2px;
+}

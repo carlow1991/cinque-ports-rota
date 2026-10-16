@@ -88,3 +88,15 @@ A venue-specific template is only offered for events at that venue.
 - Coordinators can see **draft** events at their venues only.
 - They can see email and phone only for volunteers with an active assignment, meaning `invited`, `pending_approval` or `confirmed`, on their venues' events, plus a name-only picker of all active volunteers so that they can allocate.
 - Volunteers never see drafts.
+
+## Phase 1 decisions (16 Oct 2026)
+
+- **D-101 Versions.** Next.js 16.4.2, React 19.3, @supabase/ssr 0.12.7, @supabase/supabase-js 2.118, zod 4.6, Tailwind 4.3 and Vitest 5. TypeScript 5.9 and ESLint 9 are kept because they are the versions `create-next-app` 16.4 pairs with Next.js. They will be upgraded only when Next supports TS 7 and ESLint 10.
+- **D-102 Cache Components on, identity never cached.** Next 16 enables Cache Components, and the docs say it becomes mandatory in the next major release. Session and role reads are deliberately **not** wrapped in `use cache: private`, because that would let a suspended account keep cached access for up to 5 minutes. Each protected page reads the session inside a `<Suspense>` boundary on every request.
+- **D-103 Authorisation location.** Layouts are static chrome only, because they don't re-run on client navigation. Every protected page and every Server Action or Route Handler calls the DAL (`requireVolunteer` / `requireRole`). `proxy.ts` (Next 16's renamed middleware) only refreshes the session and makes an optimistic redirect to /login. RLS is the final barrier.
+- **D-104 Sign-in method.** The primary method is a 6-digit emailed code, which is more reliable on phones where email apps open links in a different browser. The emailed link (`/auth/callback?token_hash=…`) is also supported. Sign-up is impossible: `shouldCreateUser:false` is set, and public sign-ups are disabled in the dashboard.
+- **D-105 Account linking.** `link_volunteer_account()` takes no arguments. It uses only `auth.uid()` and the Auth-held verified email, matched case-insensitively. It requires `invited_at` and `is_active`, and it never re-points a row that is already linked.
+- **D-106 Supabase key naming.** The app uses `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` and `SUPABASE_SECRET_KEY`, following Supabase's current naming. Legacy anon and service_role keys work in the same variables.
+- **D-107 Bootstrap invites.** Until the Phase 5 volunteer screen exists, admins are invited with `scripts/invite-volunteer.mts` on a trusted machine.
+- **D-108 Branding.** The navy and amber colours and the "CP" text mark are **placeholders** pending the club's official colours and crest. They are changed in one place: `src/app/globals.css` and `src/components/club-mark.tsx`.
+- **D-109 Login rate-limiting.** This relies on Supabase Auth's built-in OTP limits (per address and per IP) for Phase 1. App-level limits for signup writes are added with the RPCs in Phase 2.

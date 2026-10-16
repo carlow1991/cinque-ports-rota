@@ -3,7 +3,7 @@
 Standalone, invite-only volunteer rota for Marke Wood and Freemens Way.
 **Not part of Carl OS**, with no shared code, database or credentials.
 
-**Status:** Phase 0 (plan) complete. No application code yet.
+**Status:** Phase 1 (foundation and invitation-only login) complete, awaiting review. See `docs/setup.md` to run it.
 
 | Document | Purpose |
 |---|---|
@@ -13,6 +13,7 @@ Standalone, invite-only volunteer rota for Marke Wood and Freemens Way.
 | `docs/build-progress.md` | Audit, architecture, plan and progress checklist |
 | `docs/decisions.md` | Open questions and agreed decisions |
 | `docs/acceptance-tests.md` | Acceptance test catalogue |
+| `docs/setup.md` | Connect Supabase, configure Auth, invite the first admin, run locally |
 | `docs/deployment-approach.md` | GitHub + Vercel + Supabase deployment plan (no deploy without approval) |
 
 Template staffing numbers are **suggested, editable defaults**, not statutory, FA or grounds-safety minimums.
