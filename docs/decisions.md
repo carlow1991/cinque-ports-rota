@@ -11,7 +11,7 @@ Each entry has a status: **PROPOSED** means it is awaiting Carl's answer, **AGRE
 
 ## Open questions with proposed answers
 
-### Q1 — Where the code lives and runs · PROPOSED
+### Q1 — Where the code lives and runs · **AGREED 16 Oct 2026: private GitHub repository**
 This workspace currently cannot reach the npm registry, and it has no Docker daemon.
 **Proposed:** Create a private GitHub repository `cinque-ports-rota` owned by the club, or by Carl on the club's behalf, and push Phase 0 to it. Do Phases 1–3 in an environment that has npm access, which could be this one if access returns, or a folder connected on Carl's computer.
 
@@ -44,12 +44,12 @@ The Catalogue omits timings for some optional items. Proposed defaults are below
 
   This matches the Catalogue's statement that a training event cannot be published without an explicit site-coverage decision.
 
-### Q4 — Authorisation for composite shifts · PROPOSED
+### Q4 — Authorisation for composite shifts · **AGREED 16 Oct 2026: yes — primary duty AND every restricted included responsibility need their own valid authorisation**
 `site_lead`, `open_unlock` and `lock_secure` default to `requires_authorisation=true`.
 **Proposed:** To take a shift, a volunteer needs a valid authorisation for the primary duty **and** for every included responsibility that requires one. For example, a composite site lead with unlock and lock needs all three authorisations.
 **Alternative:** require only a `site_lead` authorisation and treat it as implying the keyholder roles. This is simpler to administer, but it implies that every site lead is a keyholder.
 
-### Q5 — "Required window" for an event linked to venue cover · PROPOSED
+### Q5 — "Required window" for an event linked to venue cover · **AGREED 16 Oct 2026: earliest setup start to end of cleaning (union of event times and all its active shifts)**
 The Catalogue says linked cover must span "the relevant operational window" but does not define it.
 **Proposed:** The required window is the earliest start to the latest end of the union of two sets of intervals:
 - the linked event's own `starts_at`/`ends_at`;

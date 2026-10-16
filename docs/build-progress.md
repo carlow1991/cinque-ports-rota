@@ -115,8 +115,8 @@ volunteers 0..1─1 auth.users (auth_user_id, unique nullable)
 1. **Template expansion.** For each **enabled** item, set `shift.starts_at = anchor(start_anchor) + start_offset` and `shift.ends_at = anchor(end_anchor) + end_offset`. The calculation is done on absolute `timestamptz`. Offsets are real elapsed minutes, so a DST change between the anchor and the shift is handled correctly. Disabled items produce **no row**. Included responsibilities are copied into `event_shift_responsibilities`. The result must satisfy `starts_at < ends_at`, or the preview flags it.
 2. **Headcount.** For each shift, `confirmed` is the count of rows with status `confirmed`. `pending` and `invited` are counted the same way. `open = max(0, required − confirmed − pending)`. Responsibilities never add headcount. Event totals are the sum over **active** shifts.
 3. **Overlap.** This applies to a single volunteer: it is blocked if `existing.start < new.end AND new.start < existing.end`, across **all** venues. Only `confirmed` and `pending_approval` assignments block, and only on active shifts of non-cancelled events. Back-to-back shifts (where one ends exactly when the next starts) are allowed.
-4. **Eligibility.** For a duty, a volunteer must be active. If the shift's **primary duty or any included responsibility** has `requires_authorisation`, the volunteer needs an active, unexpired authorisation **for each such duty**. For example, a composite site lead with lock and unlock needs `site_lead`, `open_unlock` and `lock_secure`. This interpretation needs confirming (Q4).
-5. **Site coverage of a linked event.** The *required window* is defined in Q5. The window is **covered** only if the union of intervals from the coverage event's active shifts satisfies both conditions below for every point in the window:
+4. **Eligibility.** For a duty, a volunteer must be active. If the shift's **primary duty or any included responsibility** has `requires_authorisation`, the volunteer needs an active, unexpired authorisation **for each such duty**. For example, a composite site lead with lock and unlock needs `site_lead`, `open_unlock` and `lock_secure`. Agreed (Q4).
+5. **Site coverage of a linked event.** The *required window* runs from the earliest start to the latest end across the linked event and all its active shifts, from setup to the end of cleaning (Q5, agreed). The window is **covered** only if the union of intervals from the coverage event's active shifts satisfies both conditions below for every point in the window:
    - The shift's primary duty is `site_lead`.
    - The shift has at least one `confirmed` assignment whose volunteer is currently eligible.
 
@@ -208,7 +208,9 @@ Q1 repository and build location · Q2 timings not given in the Catalogue · Q3 
 - [x] `docs/decisions.md` with open questions and proposed defaults
 - [x] `docs/acceptance-tests.md`
 - [x] `README.md`, `.env.example` (names only)
-- [ ] **Carl reviews and answers Q1–Q10 (at minimum Q1, Q4, Q5)**
+- [x] Q1 (GitHub), Q4 (separate keyholder authorisations), Q5 (setup→cleaning window) agreed 16 Oct 2026
+- [ ] Private GitHub repo created by Carl and Phase 0 pushed
+- [ ] Q2, Q3, Q6–Q10 — proposed defaults stand unless Carl changes them
 
 ### Phase 1 — Foundation & invitation-only login
 - [ ] Scaffold Next.js + TS strict + Tailwind (current versions verified)
