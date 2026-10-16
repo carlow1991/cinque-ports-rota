@@ -16,7 +16,7 @@ export default function LoginPage({ searchParams }: PageProps<"/login">) {
     <main className="flex min-h-dvh items-start justify-center px-4 py-10 sm:items-center">
       <div className="w-full max-w-sm">
         <div className="mb-6 flex items-center gap-3">
-          <ClubMark />
+          <ClubMark size="lg" />
           <div>
             <p className="text-sm font-semibold uppercase tracking-wide text-ink-muted">Cinque Ports FC</p>
             <h1 className="text-2xl font-bold text-club">Volunteer Rota</h1>

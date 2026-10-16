@@ -1,13 +1,18 @@
 @import "tailwindcss";
 
 /*
- * Club colour tokens. Placeholder navy/amber until the club confirms official colours and crest.
- * Change them here only; components use the semantic names.
+ * Club colours (confirmed by the club, 16 Oct 2026):
+ *   navy   #2a426f: primary (header, main buttons, headings)
+ *   blue   #0038c1: links and hover
+ *   orange #f25c05: accents ONLY (stripes, active markers, focus rings).
+ *   Not for small text: only 3.3:1 against white.
+ * Components use the semantic names below; change colours here only.
  */
 :root {
-  --club-primary: #12305a;
-  --club-primary-hover: #0c2343;
-  --club-accent: #f2b705;
+  --club-primary: #2a426f;
+  --club-primary-hover: #0038c1;
+  --club-blue: #0038c1;
+  --club-accent: #f25c05;
   --surface: #ffffff;
   --surface-muted: #f3f5f8;
   --ink: #111827;
@@ -21,6 +26,7 @@
   --color-club: var(--club-primary);
   --color-club-hover: var(--club-primary-hover);
   --color-accent: var(--club-accent);
+  --color-club-blue: var(--club-blue);
   --color-surface: var(--surface);
   --color-surface-muted: var(--surface-muted);
   --color-ink: var(--ink);
@@ -45,4 +51,6 @@ body {
 :where(a, button, input, select, textarea, summary):focus-visible {
   outline: 3px solid var(--club-accent);
   outline-offset: 2px;
+  /* White halo keeps the ring visible on navy as well as on white. */
+  box-shadow: 0 0 0 2px #ffffff;
 }

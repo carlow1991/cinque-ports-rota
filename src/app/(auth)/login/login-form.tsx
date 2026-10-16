@@ -57,7 +57,7 @@ export function LoginForm({ initialError }: { initialError?: string }) {
         </button>
         <p className="text-sm text-ink-muted">
           You can also tap the link in the email. Wrong address or no email?{" "}
-          <a href="/login" className="font-semibold text-club underline">
+          <a href="/login" className="font-semibold text-club-blue underline">
             Start again
           </a>
         </p>

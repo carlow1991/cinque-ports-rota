@@ -11,7 +11,7 @@ export default function ManageLayout({ children }: LayoutProps<"/manage">) {
           <Link href="/manage" className="whitespace-nowrap font-semibold text-club">
             Dashboard
           </Link>
-          <Link href="/rota" className="whitespace-nowrap text-ink-muted">
+          <Link href="/rota" className="whitespace-nowrap text-club-blue underline">
             Volunteer view
           </Link>
         </nav>
