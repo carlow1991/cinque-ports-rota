@@ -254,5 +254,6 @@ Q1 repository and build location · Q2 timings not given in the Catalogue · Q3 
 - [ ] States, logging redaction, security regression; commit
 
 ### Phase 7 — Pilot release (no deploy without approval)
+- [x] Deployment approach agreed: GitHub + Vercel + Supabase, same as Carl OS, fully separate resources (`docs/deployment-approach.md`)
 - [ ] Docs: deployment, environment, backup/recovery, privacy, handover
 - [ ] Full suite + RLS review; pilot recommendation; club decision list

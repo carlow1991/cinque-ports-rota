@@ -13,6 +13,7 @@ Standalone, invite-only volunteer rota for Marke Wood and Freemens Way.
 | `docs/build-progress.md` | Audit, architecture, plan and progress checklist |
 | `docs/decisions.md` | Open questions and agreed decisions |
 | `docs/acceptance-tests.md` | Acceptance test catalogue |
+| `docs/deployment-approach.md` | GitHub + Vercel + Supabase deployment plan (no deploy without approval) |
 
 Template staffing numbers are **suggested, editable defaults**, not statutory, FA or grounds-safety minimums.
 The rota is not a safeguarding record and stores no DBS data.
