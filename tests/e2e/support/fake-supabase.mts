@@ -85,14 +85,20 @@ const ident = (s: string) => {
   return `"${s}"`;
 };
 
+const SECRET = process.env.FAKE_SECRET_KEY ?? "sb_secret_test";
+/** The secret key (sent as apikey and/or bearer) acts as service_role, like the real API gateway. */
+const isService = (req: IncomingMessage) =>
+  req.headers.apikey === SECRET || (req.headers.authorization ?? "") === `Bearer ${SECRET}`;
+
 async function asCaller<T>(req: IncomingMessage, fn: (c: pg.PoolClient) => Promise<T>): Promise<T> {
   const token = (req.headers.authorization ?? "").replace(/^Bearer /i, "");
-  const claims = readJwt(token);
+  const service = isService(req) && !readJwt(token);
+  const claims = service ? { role: "service_role" } : readJwt(token);
   const c = await pool.connect();
   try {
     await c.query("begin");
     await c.query("select set_config('request.jwt.claims', $1, true)", [JSON.stringify(claims ?? { role: "anon" })]);
-    await c.query(`set local role ${claims ? "authenticated" : "anon"}`);
+    await c.query(`set local role ${service ? "service_role" : claims ? "authenticated" : "anon"}`);
     const out = await fn(c);
     await c.query("commit");
     return out;
@@ -129,6 +135,12 @@ function parseFilters(sp: URLSearchParams, params: unknown[]) {
   return where.length ? ` where ${where.join(" and ")}` : "";
 }
 
+// ---- fake mail state ------------------------------------------------------------
+const mailSent: { id: string; key: string; to: string[]; from: string; subject: string; html: string; text: string }[] = [];
+const mailByKey = new Map<string, string>();
+const mailFailures: number[] = [];
+let mailRepeats = 0;
+
 // ---- server -------------------------------------------------------------------
 const server = createServer(async (req, res) => {
   const url = new URL(req.url ?? "/", `http://127.0.0.1:${PORT}`);
@@ -157,13 +169,32 @@ const server = createServer(async (req, res) => {
     if (path === "/auth/v1/logout") return send(res, 204);
     if (path === "/auth/v1/invite" && req.method === "POST") {
       // Admin API: only the (test) secret key may call it. Simulates the invitee accepting at once.
-      if ((req.headers.authorization ?? "") !== `Bearer ${process.env.FAKE_SECRET_KEY ?? "sb_secret_test"}`) return send(res, 401, { msg: "invalid key" });
+      if (!isService(req)) return send(res, 401, { msg: "invalid key" });
       const b = (await body(req)) as { email?: string };
       const exists = await pool.query("select 1 from auth.users where lower(email) = lower($1)", [b.email ?? ""]);
       if (exists.rowCount) return send(res, 422, { code: "email_exists", msg: "A user with this email address has already been registered" });
       const r = await pool.query("insert into auth.users (email, email_confirmed_at) values (lower($1), now()) returning id, email", [b.email]);
       return send(res, 200, { id: r.rows[0].id, email: r.rows[0].email, aud: "authenticated", role: "authenticated" });
     }
+
+    // ---------------- fake email provider (Resend-shaped) ----------------
+    // POST /mail/emails records the message. The Idempotency-Key works like the real one: a repeat
+    // returns the first result and is NOT recorded again. /mail/_fail queues failure statuses.
+    if (path === "/mail/emails" && req.method === "POST") {
+      if ((req.headers.authorization ?? "") !== `Bearer ${process.env.FAKE_MAIL_KEY ?? "re_test_key"}`) return send(res, 403, { name: "invalid_api_key", message: "API key is invalid" });
+      const b = (await body(req)) as { to?: string[]; from?: string; subject?: string; html?: string; text?: string };
+      const fail = mailFailures.shift();
+      if (fail) return send(res, fail, { name: fail === 429 ? "rate_limit_exceeded" : "internal_server_error", message: "simulated" });
+      const key = String(req.headers["idempotency-key"] ?? "");
+      if (key && mailByKey.has(key)) { mailRepeats++; return send(res, 200, { id: mailByKey.get(key) }); }
+      const id = randomUUID();
+      if (key) mailByKey.set(key, id);
+      mailSent.push({ id, key, to: b.to ?? [], from: b.from ?? "", subject: b.subject ?? "", html: b.html ?? "", text: b.text ?? "" });
+      return send(res, 200, { id });
+    }
+    if (path === "/mail/_sent") return send(res, 200, { sent: mailSent, repeats: mailRepeats });
+    if (path === "/mail/_fail" && req.method === "POST") { const b = (await body(req)) as { statuses?: number[] }; mailFailures.push(...(b.statuses ?? [])); return send(res, 200, {}); }
+    if (path === "/mail/_reset" && req.method === "POST") { mailSent.length = 0; mailByKey.clear(); mailFailures.length = 0; mailRepeats = 0; return send(res, 200, {}); }
 
     // ---------------- rpc ----------------
     const rpc = path.match(/^\/rest\/v1\/rpc\/([a-z_][a-z0-9_]*)$/);

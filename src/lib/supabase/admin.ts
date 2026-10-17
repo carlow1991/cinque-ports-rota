@@ -1,6 +1,7 @@
 import "server-only";
 import { createClient } from "@supabase/supabase-js";
 import { publicEnv, siteUrl } from "@/lib/env";
+import { log } from "@/lib/log";
 
 /**
  * Server-only ELEVATED client (secret key, bypasses RLS). Used for exactly one thing: sending a
@@ -19,6 +20,6 @@ export async function sendAuthInvite(email: string): Promise<"sent" | "already_r
   const { error } = await admin.auth.admin.inviteUserByEmail(email, { redirectTo: `${siteUrl()}/auth/callback` });
   if (!error) return "sent";
   if (/already/i.test(error.message)) return "already_registered";
-  console.warn("[invite] auth invite failed", { status: error.status, code: error.code }); // never log the address
+  log.warn("invite", "auth invite failed", { status: error.status, code: error.code }); // never the address
   return "failed";
 }

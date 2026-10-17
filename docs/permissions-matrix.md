@@ -1,4 +1,4 @@
-# Permissions matrix (Phase 2)
+# Permissions matrix (Phases 2–6)
 
 **Applies to:** migrations `…000100` to `…000600`.
 **Enforcement:** every row below is enforced **in the database**, through RLS policies, column-level grants and checks inside each RPC. The app's page guards are a second layer and are not relied on.
@@ -29,7 +29,7 @@
 | `event_shift_responsibilities` | R where visible | Insert/delete at venue, **only while nobody is committed** | Same, all venues | Changing them would change eligibility. |
 | `assignments` | R own | R at venue | R all | **No direct writes for anyone.** RPCs only. |
 | `cancellation_requests` | R own | R at venue | R all | RPCs only. |
-| `notification_outbox` | — | — | — | Only the server email worker uses it, with the secret key. |
+| `notification_outbox` | — | — | Summary via **RPC** `admin_outbox_summary` (counts only) | Only the server email worker touches it, and only through the four outbox functions below. |
 | `audit_log` | — | — | R | Written only by trigger. Email, phone and Auth ID are redacted. |
 
 ## RPCs (all `SECURITY DEFINER`; the caller is always taken from `auth.uid()`)
@@ -62,8 +62,12 @@
 | `admin_create_volunteer(email, name, role)` | **Admin** | Normalised email, no duplicates, last-admin guard |
 | `admin_set_coordinator_venues(vol, venues[])` | **Admin** | Coordinators only; atomic replace |
 | `volunteer_rota`, `volunteer_event_view`, `my_duties` (Phase 4) | Any active volunteer | Own status and anonymous counts only |
+| `admin_outbox_summary()` (Phase 6) | **Admin** (others get nothing) | Counts by status and kind, last error (addresses redacted), oldest due time |
+| `admin_retry_failed_emails()` (Phase 6) | **Admin** | Re-queues failures from the last 7 days |
+
+**Email worker (service role, server only; Phase 6):** `outbox_enqueue_reminders`, `outbox_claim`, `outbox_complete`, `outbox_suppress`. No signed-in or anonymous user can call them (`tests/db/outbox.db.test.ts`, `privileges.db.test.ts`). The worker endpoint `/api/cron/outbox` requires `Authorization: Bearer <CRON_SECRET>`.
 
 **Function execute rights (Phase 4 fix):** every function in the database is locked by default; only the functions listed above can be called, and only by signed-in users (`tests/db/privileges.db.test.ts`).
-**Elevated key:** the server-only secret key is used for one thing, sending an Auth invitation after `admin_create_volunteer()`, and only when `AUTH_INVITES_ENABLED=true`.
+**Elevated key:** the server-only secret key is used for two things: sending an Auth invitation after `admin_create_volunteer()` (only when `AUTH_INVITES_ENABLED=true`), and the email worker calling the four outbox functions (only when `EMAIL_SENDING_ENABLED=true`).
 
 Internal helpers (`_has_overlap`, `missing_authorisations`, `_enqueue`, …) have **no** client execute grant.

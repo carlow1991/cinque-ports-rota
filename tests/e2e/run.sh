@@ -13,6 +13,15 @@ export NEXT_TELEMETRY_DISABLED=1
 # Test-only secret for the fake server; invitations are "sent" to the fake, never by email.
 export SUPABASE_SECRET_KEY=sb_secret_test
 export AUTH_INVITES_ENABLED=true
+# Email: ON, but pointed at the fake provider inside the fake server, in staging mode with a test
+# allow-list, so the real safety gates are exercised. No real email can be sent from these runs.
+export APP_ENV=staging
+export EMAIL_SENDING_ENABLED=true
+export EMAIL_PROVIDER_API_KEY=re_test_key
+export EMAIL_API_BASE_URL=http://127.0.0.1:54399/mail
+export EMAIL_FROM_ADDRESS="Cinque Ports FC Rota <rota@test.local>"
+export EMAIL_STAGING_ALLOWLIST=vol@test.local,coord@test.local,admin@test.local
+export CRON_SECRET=test-cron-secret-0123456789abcdef
 
 stop_port() { if command -v fuser >/dev/null; then fuser -k "$1/tcp" >/dev/null 2>&1 || true; fi; }
 
@@ -28,4 +37,4 @@ if [[ "${2:-}" == "--build" ]] || ! curl -s -o /dev/null http://localhost:3200/l
   for _ in $(seq 1 60); do curl -s -o /dev/null http://localhost:3200/login && break; sleep 0.5; done
 fi
 
-APP_URL=http://localhost:3200 DB_URL="$DB_URL" node "$SCRIPT"
+APP_URL=http://localhost:3200 DB_URL="$DB_URL" FAKE_URL=http://127.0.0.1:54399 node "$SCRIPT"

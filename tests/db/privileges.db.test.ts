@@ -17,6 +17,7 @@ const ALLOWED_FOR_SIGNED_IN = [
   "event_shift_staffing", "event_roster", "volunteer_picker", "event_site_coverage", "manage_events_overview",
   "volunteer_rota", "volunteer_event_view", "my_duties",
   "manage_roster", "manage_action_queue", "event_cover_leads", "admin_create_volunteer", "admin_set_coordinator_venues",
+  "admin_outbox_summary", "admin_retry_failed_emails",
 ].sort();
 
 let db: TestDb;
@@ -34,6 +35,10 @@ describe("function privileges", () => {
   });
   it("signed-in users can execute exactly the allow-list (no internal helpers)", async () => {
     expect(await callable("authenticated")).toEqual(ALLOWED_FOR_SIGNED_IN);
+  });
+  it("the email worker role can call exactly the four outbox functions (plus everything granted to signed-in users is NOT given to it)", async () => {
+    const worker = (await callable("service_role")).filter((n) => n.startsWith("outbox_"));
+    expect(worker).toEqual(["outbox_claim", "outbox_complete", "outbox_enqueue_reminders", "outbox_suppress"]);
   });
   it("internal helpers stay uncallable", async () => {
     const all = (await rows<{ proname: string }>(db.admin, "select distinct proname from pg_proc where pronamespace = 'public'::regnamespace")).map((r) => r.proname);

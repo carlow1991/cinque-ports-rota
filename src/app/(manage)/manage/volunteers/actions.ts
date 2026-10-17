@@ -1,6 +1,7 @@
 "use server";
 
 import { refresh } from "next/cache";
+import { kickOutbox } from "@/lib/email/server";
 import { z } from "zod";
 import { requireRole } from "@/lib/auth/dal";
 import { createClient } from "@/lib/supabase/server";
@@ -28,6 +29,7 @@ export async function inviteVolunteerAction(_p: ActionResult | null, fd: FormDat
   });
   if (error) return fail(friendlyError(error));
   refresh();
+  kickOutbox();
   const r = data as { already_linked: boolean; existing: boolean };
   if (r.already_linked) return { ok: true, message: `${parsed.data.display_name} already has an account and can sign in now.` };
   if (!authInvitesEnabled()) {
@@ -49,6 +51,7 @@ export async function setAccessAction(_p: ActionResult | null, fd: FormData): Pr
   const { error } = await sb.rpc("admin_set_volunteer_access", { p_volunteer_id: id.data, p_role: role.data, p_is_active: active });
   if (error) return fail(friendlyError(error));
   refresh();
+  kickOutbox();
   return { ok: true, message: active ? "Access saved." : "Access saved. They are suspended and can no longer see anything." };
 }
 
@@ -61,6 +64,7 @@ export async function setVenuesAction(_p: ActionResult | null, fd: FormData): Pr
   const { error } = await sb.rpc("admin_set_coordinator_venues", { p_volunteer_id: id.data, p_venue_ids: venues });
   if (error) return fail(friendlyError(error));
   refresh();
+  kickOutbox();
   return { ok: true, message: "Venues saved." };
 }
 
@@ -84,5 +88,6 @@ export async function setAuthorisationAction(_p: ActionResult | null, fd: FormDa
   const { error } = await sb.rpc("set_duty_authorisation", { p_volunteer_id: id.data, p_duty_code: duty.data, p_active: active, p_valid_until: validUntil });
   if (error) return fail(friendlyError(error));
   refresh();
+  kickOutbox();
   return { ok: true, message: "Authorisation saved." };
 }

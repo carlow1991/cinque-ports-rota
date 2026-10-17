@@ -257,9 +257,12 @@ Q1 repository and build location · Q2 timings not given in the Catalogue · Q3 
 - [x] Volunteers admin: add + invite (switch, default off), access/suspend, coordinator venues, dated authorisations; coordinator read-only scoped list
 - [x] Tests: 290 unit + database; 47/47 organiser phone checks (×3); Phase 3 25/25 and Phase 4 37/37 still pass
 
-### Phase 6 — Email, polish, security
-- [ ] Outbox worker, templates, idempotency, retries, reminders
-- [ ] States, logging redaction, security regression; commit
+### Phase 6 — Email, polish, security ✅ (17 Oct 2026, awaiting review)
+- [x] Outbox worker functions, service-role only: reminders (UK date, 18:00 the day before), claim once (SKIP LOCKED, crash recovery, send-time suppression), complete with backoff 2/4/8/16 min → failed after 5, suppress; admin summary + retry (`20261017000500`)
+- [x] 17 email templates (own duty only, escaped, UK time with GMT/BST); Resend transport with Idempotency-Key = outbox dedupe key; `/api/cron/outbox` behind a constant-time `CRON_SECRET` check; send straight after each change
+- [x] Gates: `EMAIL_SENDING_ENABLED` kill switch (default off), staging allow-list, demo suppression, stale-duty suppression, config check
+- [x] Error screens (volunteer, organiser, global), redacting logger, security headers, admin Email card with "Retry failed emails"
+- [x] Tests: 348 unit + database; 39/39 email checks; Phase 3/4/5 checks 25/25, 37/37, 47/47; bundle secret scan clean
 
 ### Phase 7 — Pilot release (no deploy without approval)
 - [x] Deployment approach agreed: GitHub + Vercel + Supabase, same as Carl OS, fully separate resources (`docs/deployment-approach.md`)

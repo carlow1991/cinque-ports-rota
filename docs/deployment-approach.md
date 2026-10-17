@@ -27,7 +27,7 @@ GitHub (cinque-ports-rota)
   - Auth Site URL is set to the production domain, and redirect URLs list **only** the production domain plus a specific staging URL. Wildcards are not used in production.
   - Public sign-ups are **disabled**, because the app is invite-only.
   - Custom SMTP is set up on the club's sending domain, for invites and OTP codes.
-- **Scheduled worker** (outbox and reminders, from Phase 6): a Vercel Cron Job calls `/api/cron/outbox` with `CRON_SECRET`. ⚠ Check the frequency your Vercel plan allows. If it only allows daily runs, use Supabase `pg_cron` + `pg_net` to call the same secured endpoint every few minutes instead. This is decided at Phase 6.
+- **Scheduled worker** (outbox and reminders, from Phase 6): a Vercel Cron Job calls `/api/cron/outbox` with `CRON_SECRET`. ⚠ Check the frequency your Vercel plan allows. If it only allows daily runs, use Supabase `pg_cron` + `pg_net` to call the same secured endpoint every few minutes instead. Phase 6 outcome (D-606): changes send their own emails straight away, so the schedule only drives reminders and retries; every 5–15 minutes is ideal. The scheduler is chosen with Carl at Phase 7.
 
 ## Decisions still needed (before Phase 7)
 1. **Staging database:** create a second Supabase project for staging and dev (recommended), or use local development only. Previews must never point at production data.

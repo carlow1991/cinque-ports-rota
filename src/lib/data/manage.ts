@@ -305,3 +305,15 @@ export async function loadVolunteers(): Promise<AdminVolunteer[]> {
     authorisations: auths.filter((a) => a.volunteer_id === x.id).map(({ duty_type_id, active, valid_until }) => ({ duty_type_id, active, valid_until })),
   }));
 }
+
+// ---------------------------------------------------------------------------
+// Phase 6: email status for admins (counts only, never addresses or content)
+// ---------------------------------------------------------------------------
+export type OutboxSummaryRow = { status: "pending" | "sending" | "sent" | "failed" | "suppressed"; kind: string; message_count: number; last_error: string | null; oldest_due: string | null };
+
+export async function loadOutboxSummary(): Promise<OutboxSummaryRow[]> {
+  const sb = await createClient();
+  const r = await sb.rpc("admin_outbox_summary");
+  if (r.error) throw new Error("Could not load the email summary.");
+  return (r.data ?? []) as OutboxSummaryRow[];
+}

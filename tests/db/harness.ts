@@ -33,6 +33,8 @@ export type TestDb = {
   asUser<T>(authUid: string, fn: (c: Client) => Promise<T>): Promise<T>;
   /** Like asUser but COMMITS, for functions whose side effects later steps must see. */
   asUserCommit<T>(authUid: string, fn: (c: Client) => Promise<T>): Promise<T>;
+  /** Run fn as the server-side email worker (role service_role, as with the secret key) and COMMIT. */
+  asService<T>(fn: (c: Client) => Promise<T>): Promise<T>;
   /** Fresh connection to this database (for concurrency tests). */
   connect(): Promise<Client>;
   drop(): Promise<void>;
@@ -59,7 +61,7 @@ export async function createTestDb(): Promise<TestDb> {
   }
 
   async function run<T>(
-    role: "anon" | "authenticated",
+    role: "anon" | "authenticated" | "service_role",
     authUid: string | null,
     commit: boolean,
     fn: (c: Client) => Promise<T>,
@@ -87,6 +89,7 @@ export async function createTestDb(): Promise<TestDb> {
     asAnon: (fn) => run("anon", null, false, fn),
     asUser: (uid, fn) => run("authenticated", uid, false, fn),
     asUserCommit: (uid, fn) => run("authenticated", uid, true, fn),
+    asService: (fn) => run("service_role", null, true, fn),
     connect,
     async drop() {
       await admin.end();

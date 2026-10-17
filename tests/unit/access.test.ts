@@ -76,5 +76,8 @@ describe("isPublicPath", () => {
     expect(isPublicPath("/manage")).toBe(false);
     expect(isPublicPath("/loginx")).toBe(false);
     expect(isPublicPath("/authx")).toBe(false);
+    expect(isPublicPath("/api/cron/outbox")).toBe(true);
+    expect(isPublicPath("/api/cronx")).toBe(false);
+    expect(isPublicPath("/api/other")).toBe(false);
   });
 });

@@ -3,6 +3,7 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { siteUrl } from "@/lib/env";
+import { log } from "@/lib/log";
 import { linkAllowsEntry, homePathFor } from "@/lib/auth/access";
 import { resolveAccess } from "@/lib/auth/dal";
 import {
@@ -41,7 +42,7 @@ export async function requestCode(_prev: LoginState, formData: FormData): Promis
   });
   if (error) {
     // Log the category only, never the address.
-    console.warn("[auth] otp request not sent", { status: error.status, code: error.code });
+    log.warn("auth", "otp request not sent", { status: error.status, code: error.code });
   }
 
   return { step: "code", email, notice: GENERIC_SENT_NOTICE };

@@ -1,6 +1,7 @@
 "use server";
 
 import { refresh } from "next/cache";
+import { kickOutbox } from "@/lib/email/server";
 import { z } from "zod";
 import { requireVolunteer } from "@/lib/auth/dal";
 import { createClient } from "@/lib/supabase/server";
@@ -19,6 +20,7 @@ async function call(fn: string, args: Record<string, unknown>, ok: (data: Record
   const { data, error } = await sb.rpc(fn, args);
   if (error) return fail(friendlyError(error));
   refresh();
+  kickOutbox();
   return { ok: true, message: ok((data ?? {}) as Record<string, unknown>), data: (data ?? {}) as Record<string, unknown> };
 }
 
@@ -77,5 +79,6 @@ export async function updateProfileAction(_p: ActionResult | null, fd: FormData)
   if (error) return fail(friendlyError(error));
   if (!count) return fail("Your profile couldn't be saved. Please sign in again.");
   refresh();
+  kickOutbox();
   return { ok: true, message: "Profile saved." };
 }

@@ -5,6 +5,7 @@ import { z } from "zod";
 import { requireRole } from "@/lib/auth/dal";
 import { createClient } from "@/lib/supabase/server";
 import { fail, firstIssue, friendlyError, type ActionResult } from "@/lib/actions/result";
+import { kickOutbox } from "@/lib/email/server";
 
 /** Admin-only reference data. RLS independently restricts every write to admins. */
 const ADMIN = ["admin"] as const;
@@ -79,4 +80,16 @@ export async function saveClubSettingsAction(_p: ActionResult | null, fd: FormDa
     await sb.from("club_settings").update({ withdrawal_cutoff_hours: h.data, reminder_day_before: fd.get("reminder_day_before") === "on" }, { count: "exact" }).eq("id", 1),
     "Settings saved.",
   );
+}
+
+/** Put emails that failed in the last 7 days back in the queue (admin only; checked again in the database). */
+export async function retryFailedEmailsAction(_p: ActionResult | null): Promise<ActionResult> {
+  await requireRole(ADMIN);
+  const sb = await createClient();
+  const { data, error } = await sb.rpc("admin_retry_failed_emails");
+  if (error) return fail(friendlyError(error));
+  refresh();
+  kickOutbox();
+  const n = Number(data ?? 0);
+  return { ok: true, message: n === 0 ? "There were no failed emails to retry." : `${n} email${n === 1 ? "" : "s"} queued to try again.` };
 }

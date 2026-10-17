@@ -4,8 +4,10 @@ import { ActionForm } from "@/components/action-form";
 import { PageLoading } from "@/components/app-header";
 import { Card, Checkbox, Field, Input, Notice, Textarea } from "@/components/ui";
 import { requireRole } from "@/lib/auth/dal";
-import { loadClubSettings, loadDutyTypes, loadTeams, loadVenues } from "@/lib/data/manage";
-import { saveClubSettingsAction, saveDutyTypeAction, saveTeamAction, saveVenueAction } from "./actions";
+import { loadClubSettings, loadDutyTypes, loadOutboxSummary, loadTeams, loadVenues, type OutboxSummaryRow } from "@/lib/data/manage";
+import { emailConfig } from "@/lib/email/worker";
+import { formatDay, formatTime } from "@/lib/time/london";
+import { retryFailedEmailsAction, saveClubSettingsAction, saveDutyTypeAction, saveTeamAction, saveVenueAction } from "./actions";
 
 export const metadata: Metadata = { title: "Settings" };
 
@@ -19,7 +21,7 @@ export default function SettingsPage() {
 
 async function Settings() {
   await requireRole(["admin"]);
-  const [venues, teams, duties, settings] = await Promise.all([loadVenues(), loadTeams(), loadDutyTypes(), loadClubSettings()]);
+  const [venues, teams, duties, settings, outbox] = await Promise.all([loadVenues(), loadTeams(), loadDutyTypes(), loadClubSettings(), loadOutboxSummary()]);
 
   return (
     <section className="space-y-4">
@@ -34,6 +36,8 @@ async function Settings() {
           <p className="text-xs text-ink-muted">Time zone: {settings?.timezone ?? "Europe/London"}</p>
         </ActionForm>
       </Card>
+
+      <EmailCard rows={outbox} />
 
       <Card title="Venues">
         <div className="space-y-3">
@@ -99,5 +103,46 @@ async function Settings() {
         </div>
       </Card>
     </section>
+  );
+}
+
+const STATUS_LABEL: Record<OutboxSummaryRow["status"], string> = {
+  pending: "Waiting to send", sending: "Sending", sent: "Sent", failed: "Failed", suppressed: "Not sent (by design)",
+};
+
+/** Server-rendered from configuration flags only: no keys or addresses ever reach the page. */
+function EmailCard({ rows }: { rows: OutboxSummaryRow[] }) {
+  const cfg = emailConfig();
+  const totals = new Map<string, number>();
+  for (const r of rows) totals.set(r.status, (totals.get(r.status) ?? 0) + r.message_count);
+  const failed = rows.filter((r) => r.status === "failed");
+  const waiting = rows.filter((r) => r.status === "pending" && r.oldest_due).map((r) => new Date(r.oldest_due!)).sort((a, b) => +a - +b)[0];
+  const mode = !cfg.enabled ? { tone: "info" as const, text: "Email sending is switched off. Messages are queued but nothing is sent. It is switched on in the hosting settings once the pilot is approved." }
+    : cfg.problems.length ? { tone: "bad" as const, text: "Email sending is switched on but not fully set up, so nothing is being sent. Ask the person who manages the hosting to check the email settings." }
+    : cfg.production ? { tone: "good" as const, text: "Email sending is on. Volunteers receive their emails." }
+    : { tone: "warn" as const, text: `Email sending is on in test mode: only ${cfg.allowlist.size} approved test address${cfg.allowlist.size === 1 ? "" : "es"} receive email. Everything else is held back.` };
+  return (
+    <Card title="Email">
+      <Notice tone={mode.tone}>{mode.text}</Notice>
+      <p className="mt-2 text-sm text-ink-muted">Demo events never send email. Each volunteer only ever receives details of their own duty.</p>
+      {rows.length === 0 ? (
+        <p className="mt-3">No emails in the last 30 days.</p>
+      ) : (
+        <dl className="mt-3 grid grid-cols-2 gap-x-4 gap-y-1 sm:grid-cols-3">
+          {(["pending", "sent", "failed", "suppressed"] as const).map((s) => (
+            <div key={s}><dt className="text-sm text-ink-muted">{STATUS_LABEL[s]}</dt><dd className="text-lg font-bold">{totals.get(s) ?? 0}</dd></div>
+          ))}
+        </dl>
+      )}
+      {waiting ? <p className="mt-2 text-sm">Oldest waiting email was due {formatDay(waiting)} at {formatTime(waiting)}.</p> : null}
+      <div className="mt-3 space-y-2">
+        {failed.length > 0 ? (
+          <p className="text-sm">Last error: <code className="rounded bg-surface-muted px-1">{failed[0].last_error ?? "unknown"}</code></p>
+        ) : null}
+        {/* Always shown, so its confirmation message survives the refresh that clears the failures. */}
+        <ActionForm action={retryFailedEmailsAction} submitLabel="Retry failed emails" variant="secondary" />
+      </div>
+      <p className="mt-2 text-xs text-ink-muted">Figures cover the last 30 days.</p>
+    </Card>
   );
 }

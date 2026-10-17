@@ -1,6 +1,7 @@
 "use server";
 
 import { refresh } from "next/cache";
+import { kickOutbox } from "@/lib/email/server";
 import { redirect } from "next/navigation";
 import { z } from "zod";
 import { MANAGER_ROLES } from "@/lib/auth/access";
@@ -137,6 +138,7 @@ export async function updateDetailsAction(_prev: ActionResult | null, fd: FormDa
   if (error) return fail(friendlyError(error));
   if (count === 0) return fail("You don't have permission to edit this event.");
   refresh();
+  kickOutbox();
   return { ok: true, message: "Details saved." };
 }
 
@@ -152,6 +154,7 @@ export async function rescheduleAction(_prev: ActionResult | null, fd: FormData)
   });
   if (error) return fail(friendlyError(error));
   refresh();
+  kickOutbox();
   const n = (data as { assignments_reset: number }).assignments_reset;
   return { ok: true, message: n ? `Times changed. ${n} volunteer(s) have been asked to reconfirm.` : "Times changed." };
 }
@@ -180,6 +183,7 @@ export async function addShiftAction(_prev: ActionResult | null, fd: FormData): 
   });
   if (error) return fail(friendlyError(error));
   refresh();
+  kickOutbox();
   return { ok: true, message: "Duty added." };
 }
 
@@ -200,6 +204,7 @@ export async function updateShiftAction(_prev: ActionResult | null, fd: FormData
   const instructions = String(fd.get("instructions") ?? "").trim().slice(0, 2000) || null;
   await sb.from("event_shifts").update({ instructions }).eq("id", id.data);
   refresh();
+  kickOutbox();
   const reset = (data as { assignments_reset: number }).assignments_reset;
   return { ok: true, message: reset ? `Saved. ${reset} volunteer(s) asked to reconfirm the new times.` : "Saved." };
 }
@@ -214,6 +219,7 @@ export async function cancelShiftAction(_prev: ActionResult | null, fd: FormData
   const { error } = await sb.rpc("cancel_shift", { p_shift_id: id.data, p_reason: reason.slice(0, 500) });
   if (error) return fail(friendlyError(error));
   refresh();
+  kickOutbox();
   return { ok: true, message: "Duty removed. Anyone on it has been notified." };
 }
 
@@ -227,6 +233,7 @@ export async function linkCoverAction(_prev: ActionResult | null, fd: FormData):
   const { data, error } = await sb.rpc("link_venue_cover", { p_event_id: id.data, p_coverage_event_id: cover.data });
   if (error) return fail(friendlyError(error));
   refresh();
+  kickOutbox();
   const r = data as { duplicate_duties_removed: number; duplicate_duties_kept: number };
   if (!cover.data) return { ok: true, message: "Unlinked. This event now needs its own site lead or another cover decision." };
   const parts = ["Linked to venue-wide cover."];
@@ -247,6 +254,7 @@ export async function applyTemplateAction(_prev: ActionResult | null, fd: FormDa
   const { data, error } = await sb.rpc("apply_template", { p_event_id: id.data, p_template_id: tpl.data, p_enabled: enabled, p_counts: c });
   if (error) return fail(friendlyError(error));
   refresh();
+  kickOutbox();
   const n = (data as { shifts_created: number }).shifts_created;
   return { ok: true, message: n ? `${n} duty(ies) added.` : "No new duties: those chosen are already on the event." };
 }
@@ -262,6 +270,7 @@ export async function setSiteCoverAction(_prev: ActionResult | null, fd: FormDat
   });
   if (error) return fail(friendlyError(error));
   refresh();
+  kickOutbox();
   return { ok: true, message: "Site-cover decision recorded." };
 }
 
@@ -274,6 +283,7 @@ async function rpcAction(fn: string, args: Record<string, unknown>, message: str
   const { data, error } = await sb.rpc(fn, args);
   if (error) return fail(friendlyError(error, undefined, ORGANISER_WORDING));
   refresh();
+  kickOutbox();
   return { ok: true, message: typeof message === "string" ? message : message((data ?? {}) as Record<string, unknown>) };
 }
 const reasonOf = (fd: FormData) => String(fd.get("reason") ?? "").trim().slice(0, 500);
