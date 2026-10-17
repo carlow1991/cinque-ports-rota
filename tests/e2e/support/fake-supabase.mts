@@ -13,7 +13,8 @@
  *   node tests/e2e/support/fake-supabase.mts --db <postgres url> --port 54399
  */
 import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
-import { generateKeyPairSync, randomUUID, createSign } from "node:crypto";
+import { generateKeyPairSync, randomUUID, createSign, createPrivateKey, createPublicKey } from "node:crypto";
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import pg from "pg";
 
 const args = Object.fromEntries(process.argv.slice(2).reduce<string[][]>((a, v, i, all) => (v.startsWith("--") ? [...a, [v.slice(2), all[i + 1]]] : a), []));
@@ -24,7 +25,16 @@ if (!DB_URL) throw new Error("--db <postgres url> is required");
 const pool = new pg.Pool({ connectionString: DB_URL, max: 10 });
 
 // ---- signing key / JWT ------------------------------------------------------
-const { privateKey, publicKey } = generateKeyPairSync("ec", { namedCurve: "P-256" });
+// A STABLE test key (kept in test-results/), so restarting this server doesn't invalidate the key the
+// app has already fetched and cached, just as a real Supabase project keeps its signing key.
+const KEY_FILE = "test-results/fake-supabase-signing-key.pem";
+if (!existsSync(KEY_FILE)) {
+  mkdirSync("test-results", { recursive: true });
+  const kp = generateKeyPairSync("ec", { namedCurve: "P-256" });
+  writeFileSync(KEY_FILE, kp.privateKey.export({ type: "pkcs8", format: "pem" }));
+}
+const privateKey = createPrivateKey(readFileSync(KEY_FILE));
+const publicKey = createPublicKey(privateKey);
 const KID = "fake-supabase-key";
 const jwk = { ...publicKey.export({ format: "jwk" }), kid: KID, alg: "ES256", use: "sig", key_ops: ["verify"] };
 const b64u = (b: Buffer | string) => Buffer.from(b).toString("base64url");

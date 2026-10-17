@@ -11,7 +11,11 @@ const ITEMS = [
 
 /** Phone-first bottom navigation. Active state uses weight + underline, not colour alone. */
 export function BottomNav() {
-  const pathname = usePathname();
+  return <BottomNavLinks pathname={usePathname()} />;
+}
+
+/** Same links with no "current page" marking: shown while the page address is being read. */
+export function BottomNavLinks({ pathname }: { pathname: string | null }) {
   return (
     <nav
       aria-label="Main"
@@ -19,7 +23,7 @@ export function BottomNav() {
     >
       <ul className="mx-auto grid max-w-2xl grid-cols-3">
         {ITEMS.map((item) => {
-          const active = pathname === item.href || pathname.startsWith(`${item.href}/`);
+          const active = pathname != null && (pathname === item.href || pathname.startsWith(`${item.href}/`));
           return (
             <li key={item.href}>
               <Link

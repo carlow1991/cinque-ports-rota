@@ -24,6 +24,18 @@ const FRIENDLY: Record<string, string> = {
   title_required: "Give the event a title.",
   responsibility_is_primary: "An included duty can't repeat the main duty.",
   shift_outside_event_window: "Duty times must be within 24 hours of the event.",
+  shift_full: "Shift now full; please contact the organiser.",
+  overlap: "You already have a duty at an overlapping time.",
+  not_eligible: "This duty needs a club authorisation you don't currently have.",
+  inside_cutoff: "It's too close to the duty to withdraw online. Request a cancellation instead.",
+  already_assigned: "You're already down for this duty.",
+  already_invited: "You've been invited to this duty. Accept the invitation in My Duties.",
+  signup_disabled: "This duty is filled by the organiser, not by sign-up.",
+  shift_started: "This duty has already started.",
+  event_not_open: "This event isn't open for volunteers.",
+  shift_not_open: "This duty has been cancelled.",
+  already_requested: "You've already asked to cancel this duty.",
+  rate_limited: "Too many changes in a short time. Please wait a minute and try again.",
 };
 
 type DbError = { message?: string; details?: string | null; code?: string } | null | undefined;

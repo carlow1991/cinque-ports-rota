@@ -243,10 +243,11 @@ Q1 repository and build location · Q2 timings not given in the Catalogue · Q3 
 - [x] Tests: 251 unit + database passing; 25/25 phone-width end-to-end checks (×2 runs)
 - [x] Required assertions: T01+gate+tea = 5 rows / 8 slots; T03 linked to confirmed lead = no site-lead row; T09 = 1 composite row; disabled optional = no rows
 
-### Phase 4 — Volunteer portal
-- [ ] Rota, event detail, My Duties, Profile
-- [ ] Sign up / request approval / accept / decline / withdraw / late-cancel request
-- [ ] Playwright mobile tests; commit
+### Phase 4 — Volunteer portal ✅ (17 Oct 2026, awaiting review)
+- [x] Sanitised volunteer reads: `volunteer_rota`, `volunteer_event_view`, `my_duties` (`20261017000100`)
+- [x] **Security fix:** function execute privileges locked to an allow-list; sweep test (`20261017000200`)
+- [x] Rota (venue tabs, type/team filters, "places you can take", next weeks), Event (duties with plain-English reasons, sign up / request approval / accept / decline, names-only roster), My Duties (4 tabs, withdraw before cut-off, late cancellation request, add to calendar), Profile (name, phone, venue preference, privacy, sign out)
+- [x] Tests: 272 unit + database; 37/37 phone-width volunteer checks (×3 runs) incl. keyboard-only, privacy, lost race, suspension; Phase 3 organiser checks still 25/25
 
 ### Phase 5 — Coverage & admin control
 - [ ] Allocation, approvals, coordinator scope

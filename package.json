@@ -11,9 +11,9 @@
     "test": "vitest run",
     "test:unit": "vitest run tests/unit",
     "test:db": "vitest run tests/db",
-    "e2e:setup-db": "node tests/e2e/support/setup-db.mts rota_e2e",
-    "e2e:fake-supabase": "node tests/e2e/support/fake-supabase.mts --port 54399 --db",
-    "e2e:phase3": "node tests/e2e/phase3-smoke.mts"
+    "e2e:phase3": "tests/e2e/run.sh tests/e2e/phase3-smoke.mts",
+    "e2e:phase4": "tests/e2e/run.sh tests/e2e/phase4-volunteer.mts",
+    "e2e": "tests/e2e/run.sh tests/e2e/phase3-smoke.mts --build && tests/e2e/run.sh tests/e2e/phase4-volunteer.mts"
   },
   "dependencies": {
     "@supabase/ssr": "^0.12.7",
