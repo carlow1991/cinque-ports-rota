@@ -31,3 +31,9 @@ language sql stable as $$
   )::uuid
 $$;
 grant execute on function auth.uid() to anon, authenticated, service_role;
+
+-- Hosted Supabase gives these three roles ALL on every NEW table, function and sequence that the
+-- migration role (postgres) creates in public. Mirror that so the tests see production's grants.
+alter default privileges in schema public grant all on tables to anon, authenticated, service_role;
+alter default privileges in schema public grant all on functions to anon, authenticated, service_role;
+alter default privileges in schema public grant all on sequences to anon, authenticated, service_role;

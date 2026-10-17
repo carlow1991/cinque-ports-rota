@@ -70,3 +70,24 @@ Each test has an ID, the phase that delivers it, and its layer: **U** = unit (Vi
 | M02 | A demo event never sends. A non-production environment sends only to allow-listed recipients. | U |
 | M03 | The reminder targets the correct UK local day around DST. It is suppressed if the assignment or event is inactive at send time. | U, D |
 | M04 | Email bodies contain no roster or other people's contact details. | U |
+
+## Pilot release (Phase 7)
+| ID | Test | Layer |
+|---|---|---|
+| P01 | Under Supabase's real default privileges, each API role has exactly its pinned grants; the secret key reaches 5 functions and no tables. | D (`security-audit`) |
+| P02 | The first-admin script creates an admin with the secret key, is idempotent, fails with the public key, and the admin can sign in. | E (`phase7-pilot`) |
+| P03 | The demo seed can't reach a real database (`config.toml` disables it; the seed refuses next to real events). | E, CLI rehearsal |
+| P04 | The documented erasure and retention SQL remove all traces of a person and keep the duty history. | D (`anonymise`) |
+| P05 | The settings check catches secrets exposed to the browser, swapped keys and unsafe values, without printing values. | U (`env-rules`) |
+
+## Where each section is proven (Phase 7 full run, `test-report-phase-7.md`)
+| Section | Automated evidence |
+|---|---|
+| Auth & access | `access`, `server-enforcement`, `volunteers-foundation`, `permissions`, `privileges`, `security-audit`; Phase 3–5 role checks |
+| Assignment integrity | `assignments`, `concurrency` (parallel connections), `permissions` |
+| Templates & coverage | `templates` (unit + database), `coverage`, `organiser`, `staffing`; Phase 3 and 5 checks |
+| Volunteer UX | `volunteer-views`, `volunteer-helpers`, `london-time`; Phase 4 checks at 375px |
+| Email | `outbox`, `email`; Phase 6 checks (fake provider) |
+| Pilot release | P01–P05 above |
+
+**Accepted manually during the pilot** (can't be automated from here): real email delivery and spam placement on the club domain; Supabase dashboard settings (sign-ups off, redirect URLs, SMTP); the first Postgres 17 database; pilot-group acceptance (`pilot-plan.md` measures).

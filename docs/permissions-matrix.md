@@ -1,4 +1,4 @@
-# Permissions matrix (Phases 2–6)
+# Permissions matrix (Phases 2–7)
 
 **Applies to:** migrations `…000100` to `…000600`.
 **Enforcement:** every row below is enforced **in the database**, through RLS policies, column-level grants and checks inside each RPC. The app's page guards are a second layer and are not relied on.
@@ -65,9 +65,9 @@
 | `admin_outbox_summary()` (Phase 6) | **Admin** (others get nothing) | Counts by status and kind, last error (addresses redacted), oldest due time |
 | `admin_retry_failed_emails()` (Phase 6) | **Admin** | Re-queues failures from the last 7 days |
 
-**Email worker (service role, server only; Phase 6):** `outbox_enqueue_reminders`, `outbox_claim`, `outbox_complete`, `outbox_suppress`. No signed-in or anonymous user can call them (`tests/db/outbox.db.test.ts`, `privileges.db.test.ts`). The worker endpoint `/api/cron/outbox` requires `Authorization: Bearer <CRON_SECRET>`.
+**Secret key (service role, server only; Phases 6–7):** **no table access at all** (D-701). It can call exactly `outbox_enqueue_reminders`, `outbox_claim`, `outbox_complete`, `outbox_suppress` (email worker) and `admin_bootstrap_volunteer` (first-admin script). No signed-in or anonymous user can call them (`tests/db/outbox.db.test.ts`, `privileges.db.test.ts`, `security-audit.db.test.ts`). The worker endpoint `/api/cron/outbox` requires `Authorization: Bearer <CRON_SECRET>`.
 
 **Function execute rights (Phase 4 fix):** every function in the database is locked by default; only the functions listed above can be called, and only by signed-in users (`tests/db/privileges.db.test.ts`).
-**Elevated key:** the server-only secret key is used for two things: sending an Auth invitation after `admin_create_volunteer()` (only when `AUTH_INVITES_ENABLED=true`), and the email worker calling the four outbox functions (only when `EMAIL_SENDING_ENABLED=true`).
+**Elevated key:** the server-only secret key is used for three things: sending an Auth invitation after `admin_create_volunteer()` (only when `AUTH_INVITES_ENABLED=true`), the email worker (only when `EMAIL_SENDING_ENABLED=true`), and `scripts/invite-volunteer.mts` on a trusted machine for the first admin. The database limits it to five functions.
 
 Internal helpers (`_has_overlap`, `missing_authorisations`, `_enqueue`, …) have **no** client execute grant.

@@ -2,7 +2,7 @@
 
 **Agreed 16 October 2026.** The rota uses the same stack as Carl OS: **GitHub, Vercel and Supabase**. It uses entirely separate accounts and resources, so nothing is shared with Carl OS.
 
-**Status:** this is a plan only. **Nothing is deployed until Carl gives explicit approval at Phase 7.**
+**Status:** prepared. The step-by-step version is **`deployment-checklist.md`** (Phase 7). **Nothing is deployed until Carl gives explicit approval.**
 
 ## Separation from Carl OS (non-negotiable)
 | Resource | Carl OS | Cinque Ports rota |
@@ -21,7 +21,7 @@ GitHub (cinque-ports-rota)
 ```
 
 - **Vercel** imports the GitHub repo. Pushes to `main` deploy to production, and pull requests get preview URLs. The framework preset is Next.js, with the default build command.
-- **Environment variables** are set separately for Production and Preview in Vercel. The variable names are in `.env.example`. `SUPABASE_SERVICE_ROLE_KEY`, `CRON_SECRET` and the email API key are server-only. On Preview: `APP_ENV=staging`, `EMAIL_SENDING_ENABLED=false` or allow-list only.
+- **Environment variables** are set separately for Production and Preview in Vercel. The variable names are in `.env.example`. `SUPABASE_SECRET_KEY`, `CRON_SECRET` and the email API key are server-only. On Preview: `APP_ENV=staging`, `EMAIL_SENDING_ENABLED=false` or allow-list only.
 - **Supabase:**
   - Migrations in `supabase/migrations` are applied with the Supabase CLI (`supabase link` then `supabase db push`). They are never edited by hand in the dashboard.
   - Auth Site URL is set to the production domain, and redirect URLs list **only** the production domain plus a specific staging URL. Wildcards are not used in production.

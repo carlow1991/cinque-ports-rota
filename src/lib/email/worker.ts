@@ -5,7 +5,8 @@
  *  1. Nothing happens unless EMAIL_SENDING_ENABLED=true AND the provider key, from address and
  *     Supabase secret key are all set.
  *  2. Demo events are suppressed in the database when queued, so they never reach this code.
- *  3. Outside APP_ENV=production, only addresses on EMAIL_STAGING_ALLOWLIST receive mail;
+ *  3. Outside APP_ENV=production (development, staging, or "pilot" on the live site), only
+ *     addresses on EMAIL_STAGING_ALLOWLIST receive mail;
  *     everything else is suppressed (not left pending, so it can't go out later by surprise).
  *  4. The database re-checks each message at claim time (suspended recipient, cancelled duty).
  *  5. Messages about a duty that has already started are suppressed as stale.

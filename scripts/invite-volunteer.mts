@@ -1,9 +1,10 @@
 /**
- * Invite a volunteer (bootstrap tool until the /manage/volunteers screen exists in Phase 5).
+ * Invite a volunteer from a trusted machine. Needed once, for the FIRST admin; after that admins
+ * add people in the app (/manage/volunteers).
  *
  *   node --env-file=.env.local scripts/invite-volunteer.mts <email> "<Display Name>" [admin|coordinator|volunteer]
  *
- * 1. Creates (or re-activates) the volunteer row with invited_at set.
+ * 1. Creates (or re-activates) the volunteer via admin_bootstrap_volunteer() (secret key only).
  * 2. Sends the Supabase Auth invite email, which lands on /auth/callback.
  *
  * Runs ONLY on a trusted machine: it needs SUPABASE_SECRET_KEY, which bypasses RLS.
@@ -34,27 +35,14 @@ if (!url || !secret) fail("NEXT_PUBLIC_SUPABASE_URL and SUPABASE_SECRET_KEY must
 
 const admin = createClient(url, secret, { auth: { persistSession: false, autoRefreshToken: false } });
 
-const { data: existing, error: findErr } = await admin
-  .from("volunteers")
-  .select("id, auth_user_id, is_active")
-  .eq("email", email)
-  .maybeSingle();
-if (findErr) fail(`Could not check existing volunteers: ${findErr.message}`);
+// The secret key can only call this one function on the club's tables (least privilege, Phase 7).
+const { data: res, error: saveErr } = await admin.rpc("admin_bootstrap_volunteer", {
+  p_email: email, p_display_name: displayName, p_role: role,
+});
+if (saveErr) fail(`Could not save the volunteer: ${saveErr.details || saveErr.message}`);
+const existing = res as { volunteer_id: string; already_linked: boolean; existing: boolean };
 
-if (existing) {
-  const { error } = await admin
-    .from("volunteers")
-    .update({ display_name: displayName, role, is_active: true, invited_at: new Date().toISOString() })
-    .eq("id", existing.id);
-  if (error) fail(`Could not update volunteer: ${error.message}`);
-} else {
-  const { error } = await admin
-    .from("volunteers")
-    .insert({ email, display_name: displayName, role, is_active: true, invited_at: new Date().toISOString() });
-  if (error) fail(`Could not create volunteer: ${error.message}`);
-}
-
-if (existing?.auth_user_id) {
+if (existing.already_linked) {
   console.log(`✔ ${displayName} already has an account. Access updated (role: ${role}). They can sign in at ${site}/login`);
   process.exit(0);
 }

@@ -1,4 +1,6 @@
-# Setup guide (Phase 1)
+# Setup guide (local development)
+
+For staging/production, follow **`deployment-checklist.md`** instead; this page is for running the rota on your own computer.
 
 How to connect the app to the club's Supabase project and invite the first administrator.
 Do these steps **once** per Supabase project (later: once for staging, once for production).
@@ -12,7 +14,7 @@ cp .env.example .env.local
 Fill in from the Supabase project's API keys page:
 - `NEXT_PUBLIC_SUPABASE_URL`: the Project URL
 - `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`: the publishable key (or legacy anon key)
-- `SUPABASE_SECRET_KEY`: the secret key (or legacy service_role key). It is used only by the invite script.
+- `SUPABASE_SECRET_KEY`: the secret key (or legacy service_role key). The database only lets it run the email worker and the first-admin script.
 
 ## 2. Apply the database migration
 Either use the Supabase CLI (recommended):

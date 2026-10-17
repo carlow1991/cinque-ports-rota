@@ -1,7 +1,7 @@
 # Cinque Ports FC Volunteer Rota — Phase 0 Audit, Build Plan & Progress Checklist
 
 **Date:** 16 October 2026
-**Status:** Phase 0 complete. **Awaiting review.** No application code written.
+**Status:** Phases 0–7 complete. Pilot release prepared; **awaiting Carl's approval to deploy** (see `club-decisions.md`).
 **Sources:** `docs/Cinque_Ports_Volunteer_Rota_V1_Build_Spec.md` (the "Spec") and `docs/Duty_Catalogue_and_Venue_Templates_V1.md` (the "Catalogue"). Where they differ, the Catalogue governs duty and template content. The Spec governs everything else.
 
 ---
@@ -264,7 +264,10 @@ Q1 repository and build location · Q2 timings not given in the Catalogue · Q3 
 - [x] Error screens (volunteer, organiser, global), redacting logger, security headers, admin Email card with "Retry failed emails"
 - [x] Tests: 348 unit + database; 39/39 email checks; Phase 3/4/5 checks 25/25, 37/37, 47/47; bundle secret scan clean
 
-### Phase 7 — Pilot release (no deploy without approval)
+### Phase 7 — Pilot release prepared ✅ (17 Oct 2026, awaiting approval to deploy; nothing deployed)
 - [x] Deployment approach agreed: GitHub + Vercel + Supabase, same as Carl OS, fully separate resources (`docs/deployment-approach.md`)
-- [ ] Docs: deployment, environment, backup/recovery, privacy, handover
-- [ ] Full suite + RLS review; pilot recommendation; club decision list
+- [x] Security review (`security-review.md`): tests now copy Supabase's default grants; **F-1 fixed**, secret key limited to 5 functions (`20261017000600`); grant snapshot audit
+- [x] Supabase CLI `db push` rehearsed (apply, no-op re-push, no demo seed); `supabase/config.toml` committed safe
+- [x] `scripts/check-env.mts`; pilot mode (`APP_ENV=pilot`); first-admin bootstrap via a least-privilege function
+- [x] Docs: `deployment-checklist`, `environment-setup`, `backup-and-recovery`, `privacy-and-access-review` (+ tested erasure/retention SQL), `data-ownership-and-handover`, `admin-guide`, `pilot-plan`, `club-decisions`
+- [x] Full suite + all phase checks (`test-report-phase-7.md`)

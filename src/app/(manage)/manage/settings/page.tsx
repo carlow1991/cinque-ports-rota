@@ -120,7 +120,7 @@ function EmailCard({ rows }: { rows: OutboxSummaryRow[] }) {
   const mode = !cfg.enabled ? { tone: "info" as const, text: "Email sending is switched off. Messages are queued but nothing is sent. It is switched on in the hosting settings once the pilot is approved." }
     : cfg.problems.length ? { tone: "bad" as const, text: "Email sending is switched on but not fully set up, so nothing is being sent. Ask the person who manages the hosting to check the email settings." }
     : cfg.production ? { tone: "good" as const, text: "Email sending is on. Volunteers receive their emails." }
-    : { tone: "warn" as const, text: `Email sending is on in test mode: only ${cfg.allowlist.size} approved test address${cfg.allowlist.size === 1 ? "" : "es"} receive email. Everything else is held back.` };
+    : { tone: "warn" as const, text: `Email sending is on in ${process.env.APP_ENV === "pilot" ? "pilot" : "test"} mode: only ${cfg.allowlist.size} approved address${cfg.allowlist.size === 1 ? "" : "es"} receive email. Everything else is held back.` };
   return (
     <Card title="Email">
       <Notice tone={mode.tone}>{mode.text}</Notice>

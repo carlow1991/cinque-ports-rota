@@ -36,9 +36,8 @@ describe("function privileges", () => {
   it("signed-in users can execute exactly the allow-list (no internal helpers)", async () => {
     expect(await callable("authenticated")).toEqual(ALLOWED_FOR_SIGNED_IN);
   });
-  it("the email worker role can call exactly the four outbox functions (plus everything granted to signed-in users is NOT given to it)", async () => {
-    const worker = (await callable("service_role")).filter((n) => n.startsWith("outbox_"));
-    expect(worker).toEqual(["outbox_claim", "outbox_complete", "outbox_enqueue_reminders", "outbox_suppress"]);
+  it("the secret-key role can call exactly the four outbox functions and the first-admin bootstrap", async () => {
+    expect(await callable("service_role")).toEqual(["admin_bootstrap_volunteer", "outbox_claim", "outbox_complete", "outbox_enqueue_reminders", "outbox_suppress"]);
   });
   it("internal helpers stay uncallable", async () => {
     const all = (await rows<{ proname: string }>(db.admin, "select distinct proname from pg_proc where pronamespace = 'public'::regnamespace")).map((r) => r.proname);

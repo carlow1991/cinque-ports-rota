@@ -153,7 +153,7 @@ const A = admin.page;
 await A.goto(`${APP}/manage/settings`);
 await A.getByRole("heading", { level: 1, name: "Settings" }).waitFor();
 const cardText = (await A.textContent("main")) ?? "";
-check("settings: admin sees email is on in TEST mode with the allow-list size", cardText.includes("test mode") && cardText.includes("3 approved test addresses"));
+check("settings: admin sees email is on in TEST mode with the allow-list size", cardText.includes("test mode") && cardText.includes("3 approved addresses"));
 check("settings: counts shown, no addresses on the page", /Failed\s*1/.test(cardText.replace(/\n/g, " ")) && !/@test\.local/.test(cardText));
 await A.screenshot({ path: `${SHOTS}/settings-email.png`, fullPage: true });
 await A.getByRole("button", { name: "Retry failed emails" }).click();
