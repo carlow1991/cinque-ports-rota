@@ -10,8 +10,11 @@ import { resolveAccess } from "@/lib/auth/dal";
  */
 const LINKS = [
   { href: "/manage", label: "Dashboard" },
+  { href: "/manage/approvals", label: "Needs action" },
+  { href: "/manage/coverage", label: "Coverage" },
   { href: "/manage/calendar", label: "Calendar" },
   { href: "/manage/events/new", label: "New event" },
+  { href: "/manage/volunteers", label: "Volunteers" },
   { href: "/manage/templates", label: "Templates" },
 ];
 

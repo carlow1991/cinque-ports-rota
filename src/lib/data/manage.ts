@@ -188,3 +188,120 @@ export async function loadClubSettings() {
   if (r.error) throw new Error("Could not load settings.");
   return r.data as { withdrawal_cutoff_hours: number; reminder_day_before: boolean; timezone: string } | null;
 }
+
+// ---------------------------------------------------------------------------
+// Phase 5: rosters, action queue, site-lead names, allocation picker
+// ---------------------------------------------------------------------------
+export type RosterRow = {
+  event_id: string; event_title: string; event_type: string; event_status: string; is_demo: boolean;
+  venue_id: string; venue_name: string; team_name: string | null; event_starts_at: string; event_ends_at: string;
+  shift_id: string; duty_code: string; duty_name: string; responsibilities: string[];
+  shift_starts_at: string; shift_ends_at: string; required_count: number; approval_required: boolean; signup_enabled: boolean;
+  shift_instructions: string | null;
+  assignment_id: string | null; volunteer_id: string | null; display_name: string | null; phone: string | null;
+  status: "invited" | "pending_approval" | "confirmed" | null; source: string | null; attendance_status: string | null;
+  status_changed_at: string | null; cancellation_request_id: string | null; cancellation_reason: string | null;
+};
+
+export async function loadRoster(opts: { eventId?: string; from?: Date; to?: Date; venueId?: string | null }): Promise<RosterRow[]> {
+  const sb = await createClient();
+  const r = await sb.rpc("manage_roster", {
+    p_from: opts.from?.toISOString() ?? null, p_to: opts.to?.toISOString() ?? null,
+    p_venue_id: opts.venueId ?? null, p_event_id: opts.eventId ?? null,
+  });
+  return must<RosterRow[]>(r, "the roster");
+}
+
+export type QueueRow = {
+  kind: "approval" | "invitation" | "cancellation"; assignment_id: string; request_id: string | null; event_id: string;
+  event_title: string; venue_name: string; duty_name: string; shift_starts_at: string; shift_ends_at: string;
+  display_name: string; reason: string | null; since: string;
+};
+
+export async function loadActionQueue(): Promise<QueueRow[]> {
+  const sb = await createClient();
+  return must<QueueRow[]>(await sb.rpc("manage_action_queue"), "the action list");
+}
+
+export type CoverLead = { source: "this_event" | "linked_cover"; event_id: string; event_title: string; shift_id: string; starts_at: string; ends_at: string; display_name: string | null; status: string | null; authorised: boolean | null };
+
+export async function loadCoverLeads(eventId: string): Promise<CoverLead[]> {
+  const sb = await createClient();
+  return must<CoverLead[]>(await sb.rpc("event_cover_leads", { p_event_id: eventId }), "site leads");
+}
+
+export type PickerRow = { volunteer_id: string; display_name: string; eligible: boolean; missing_authorisations: string[]; has_overlap: boolean };
+
+export async function loadPicker(shiftId: string): Promise<PickerRow[]> {
+  const sb = await createClient();
+  return must<PickerRow[]>(await sb.rpc("volunteer_picker", { p_shift_id: shiftId }), "volunteers");
+}
+
+export async function loadShiftForAssign(shiftId: string) {
+  const sb = await createClient();
+  const s = await sb.from("event_shifts").select("id, event_id, duty_type_id, starts_at, ends_at, required_count, status").eq("id", shiftId).maybeSingle();
+  if (s.error) throw new Error("Could not load the duty.");
+  if (!s.data) return null;
+  const [ev, duty, staffing] = await Promise.all([
+    sb.from("events").select("id, title, venue_id, status, starts_at, ends_at").eq("id", s.data.event_id).maybeSingle(),
+    sb.from("duty_types").select("name").eq("id", s.data.duty_type_id).maybeSingle(),
+    sb.rpc("event_shift_staffing", { p_event_id: s.data.event_id }),
+  ]);
+  if (!ev.data) return null;
+  const st = must<{ shift_id: string; confirmed_count: number; pending_count: number; invited_count: number | null; open_slots: number }[]>(staffing, "staffing")
+    .find((x) => x.shift_id === shiftId);
+  return {
+    shift: s.data as { id: string; event_id: string; starts_at: string; ends_at: string; required_count: number; status: string },
+    event: ev.data as { id: string; title: string; venue_id: string; status: string; starts_at: string; ends_at: string },
+    dutyName: (duty.data as { name: string } | null)?.name ?? "Duty",
+    staffing: st ?? null,
+  };
+}
+
+/** People on an event's duties plus who provides site-lead cover, read at one request time. */
+export async function loadEventPeople(eventId: string) {
+  const [rows, leads] = await Promise.all([loadRoster({ eventId }), loadCoverLeads(eventId)]);
+  return { rows, leads, now: Date.now() };
+}
+
+/** Exact uncovered site-lead times for each event (only call for events flagged at risk / no cover). */
+export async function loadCoverGaps(eventIds: string[]): Promise<Map<string, NonNullable<Coverage>>> {
+  const sb = await createClient();
+  const results = await Promise.all(eventIds.map((id) => sb.rpc("event_site_coverage", { p_event_id: id })));
+  const out = new Map<string, NonNullable<Coverage>>();
+  results.forEach((r, i) => {
+    const row = must<NonNullable<Coverage>[]>(r, "venue cover")[0];
+    if (row) out.set(eventIds[i], row);
+  });
+  return out;
+}
+
+/** Overview + roster for a window, read at one request time. */
+export async function loadCoverageWindow(from: Date, to: Date, venueId: string | null) {
+  const [overview, roster] = await Promise.all([loadOverview(from, to, venueId), loadRoster({ from, to, venueId })]);
+  return { overview, roster, now: Date.now() };
+}
+
+export type AdminVolunteer = {
+  id: string; email: string; display_name: string; phone: string | null; role: "admin" | "coordinator" | "volunteer";
+  is_active: boolean; invited_at: string | null; linked_at: string | null;
+  venues: string[]; authorisations: { duty_type_id: string; active: boolean; valid_until: string | null }[];
+};
+
+/** Volunteers visible to the caller (RLS: admins all; coordinators only people on their venues' duties). */
+export async function loadVolunteers(): Promise<AdminVolunteer[]> {
+  const sb = await createClient();
+  const [v, cv, auth] = await Promise.all([
+    sb.from("volunteers").select("id, email, display_name, phone, role, is_active, invited_at, linked_at").order("display_name"),
+    sb.from("coordinator_venues").select("volunteer_id, venue_id"),
+    sb.from("volunteer_duty_authorisations").select("volunteer_id, duty_type_id, active, valid_until"),
+  ]);
+  type V = Omit<AdminVolunteer, "venues" | "authorisations">;
+  const venues = must<{ volunteer_id: string; venue_id: string }[]>(cv, "venue access");
+  const auths = must<{ volunteer_id: string; duty_type_id: string; active: boolean; valid_until: string | null }[]>(auth, "authorisations");
+  return must<V[]>(v, "volunteers").map((x) => ({
+    ...x,
+    venues: venues.filter((c) => c.volunteer_id === x.id).map((c) => c.venue_id),
+    authorisations: auths.filter((a) => a.volunteer_id === x.id).map(({ duty_type_id, active, valid_until }) => ({ duty_type_id, active, valid_until })),
+  }));
+}

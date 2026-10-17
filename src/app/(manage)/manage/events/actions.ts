@@ -6,7 +6,7 @@ import { z } from "zod";
 import { MANAGER_ROLES } from "@/lib/auth/access";
 import { requireRole } from "@/lib/auth/dal";
 import { createClient } from "@/lib/supabase/server";
-import { fail, firstIssue, friendlyError, type ActionResult } from "@/lib/actions/result";
+import { fail, firstIssue, friendlyError, ORGANISER_WORDING, type ActionResult } from "@/lib/actions/result";
 import { londonToInstant, londonWindow } from "@/lib/time/london";
 
 /**
@@ -263,4 +263,82 @@ export async function setSiteCoverAction(_prev: ActionResult | null, fd: FormDat
   if (error) return fail(friendlyError(error));
   refresh();
   return { ok: true, message: "Site-cover decision recorded." };
+}
+
+// ---------------------------------------------------------------------------
+// Phase 5: people on duties, attendance, postpone / cancel / complete
+// ---------------------------------------------------------------------------
+async function rpcAction(fn: string, args: Record<string, unknown>, message: string | ((d: Record<string, unknown>) => string)): Promise<ActionResult> {
+  await requireRole(MANAGER_ROLES);
+  const sb = await createClient();
+  const { data, error } = await sb.rpc(fn, args);
+  if (error) return fail(friendlyError(error, undefined, ORGANISER_WORDING));
+  refresh();
+  return { ok: true, message: typeof message === "string" ? message : message((data ?? {}) as Record<string, unknown>) };
+}
+const reasonOf = (fd: FormData) => String(fd.get("reason") ?? "").trim().slice(0, 500);
+
+export async function allocateAction(_p: ActionResult | null, fd: FormData): Promise<ActionResult> {
+  const s = uuid.safeParse(fd.get("shift_id"));
+  const v = uuid.safeParse(fd.get("volunteer_id"));
+  if (!s.success || !v.success) return fail("Choose a volunteer.");
+  return rpcAction("allocate_volunteer", { p_shift_id: s.data, p_volunteer_id: v.data },
+    "Invitation sent. It counts as cover only once they accept.");
+}
+
+export async function approveAction(_p: ActionResult | null, fd: FormData): Promise<ActionResult> {
+  const a = uuid.safeParse(fd.get("assignment_id"));
+  if (!a.success) return fail("Not found.");
+  return rpcAction("approve_assignment", { p_assignment_id: a.data }, "Approved. They're confirmed and have been told.");
+}
+
+export async function rejectAction(_p: ActionResult | null, fd: FormData): Promise<ActionResult> {
+  const a = uuid.safeParse(fd.get("assignment_id"));
+  if (!a.success) return fail("Not found.");
+  return rpcAction("reject_assignment", { p_assignment_id: a.data, p_reason: reasonOf(fd) || null }, "Declined. The place is free again.");
+}
+
+export async function removeAction(_p: ActionResult | null, fd: FormData): Promise<ActionResult> {
+  const a = uuid.safeParse(fd.get("assignment_id"));
+  if (!a.success) return fail("Not found.");
+  const reason = reasonOf(fd);
+  if (!reason) return fail("Please give a reason. The volunteer will see it.");
+  return rpcAction("remove_assignment", { p_assignment_id: a.data, p_reason: reason }, "Removed. The place is open again.");
+}
+
+export async function resolveCancellationAction(_p: ActionResult | null, fd: FormData): Promise<ActionResult> {
+  const r = uuid.safeParse(fd.get("request_id"));
+  if (!r.success) return fail("Not found.");
+  const approve = fd.get("decision") === "approve";
+  return rpcAction("resolve_cancellation_request", { p_request_id: r.data, p_approve: approve },
+    approve ? "Cancellation accepted. The place is open again." : "Cancellation declined. They're still on the duty.");
+}
+
+export async function attendanceAction(_p: ActionResult | null, fd: FormData): Promise<ActionResult> {
+  const a = uuid.safeParse(fd.get("assignment_id"));
+  const s = z.enum(["present", "absent", "not_recorded"]).safeParse(fd.get("attendance"));
+  if (!a.success || !s.success) return fail("Not found.");
+  return rpcAction("mark_attendance", { p_assignment_id: a.data, p_attendance: s.data }, "Attendance saved.");
+}
+
+export async function postponeAction(_p: ActionResult | null, fd: FormData): Promise<ActionResult> {
+  const e = uuid.safeParse(fd.get("event_id"));
+  if (!e.success) return fail("Event not found.");
+  if (!reasonOf(fd)) return fail("Please give a reason. Volunteers will see it.");
+  return rpcAction("postpone_event", { p_event_id: e.data, p_reason: reasonOf(fd) }, (d) =>
+    `Postponed. ${d.assignments_reset ?? 0} volunteer(s) told and asked to reconfirm. Set the new date, then publish again.`);
+}
+
+export async function cancelEventAction(_p: ActionResult | null, fd: FormData): Promise<ActionResult> {
+  const e = uuid.safeParse(fd.get("event_id"));
+  if (!e.success) return fail("Event not found.");
+  if (!reasonOf(fd)) return fail("Please give a reason. Volunteers will see it.");
+  return rpcAction("cancel_event", { p_event_id: e.data, p_reason: reasonOf(fd) }, (d) =>
+    `Cancelled. ${d.assignments_cancelled ?? 0} volunteer(s) told; reminders stopped.`);
+}
+
+export async function completeEventAction(_p: ActionResult | null, fd: FormData): Promise<ActionResult> {
+  const e = uuid.safeParse(fd.get("event_id"));
+  if (!e.success) return fail("Event not found.");
+  return rpcAction("complete_event", { p_event_id: e.data }, "Marked as completed.");
 }

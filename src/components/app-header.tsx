@@ -3,7 +3,7 @@ import { ClubMark } from "@/components/club-mark";
 
 export function AppHeader({ title, homeHref }: { title: string; homeHref: string }) {
   return (
-    <header className="sticky top-0 z-10 border-b-4 border-accent bg-club text-white">
+    <header className="sticky top-0 z-10 border-b-4 border-accent bg-club text-white print:hidden">
       <div className="mx-auto flex max-w-5xl items-center gap-3 px-4 py-3">
         <Link href={homeHref} className="flex items-center gap-2 rounded">
           <ClubMark size="sm" />

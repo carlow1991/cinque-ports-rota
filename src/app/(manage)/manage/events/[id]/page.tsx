@@ -7,13 +7,14 @@ import { PageLoading } from "@/components/app-header";
 import { Badge, Card, Checkbox, CoverBadge, DemoBadge, EVENT_TYPE_LABEL, Field, Input, Notice, Select, StatusBadge, Textarea } from "@/components/ui";
 import { MANAGER_ROLES } from "@/lib/auth/access";
 import { requireRole } from "@/lib/auth/dal";
-import { loadCoverageEvents, loadEvent, loadLinkedEvents, loadTeams, loadTemplates, loadVenues, type ShiftView } from "@/lib/data/manage";
+import { loadCoverageEvents, loadEvent, loadEventPeople, loadLinkedEvents, loadTeams, loadTemplates, loadVenues, type RosterRow, type ShiftView } from "@/lib/data/manage";
+import { ShiftPeople } from "./shift-people";
 import { COVER_EXPLANATION, parseRanges } from "@/lib/domain/coverage";
 import { describeOffset } from "@/lib/domain/templates";
 import { formatLongDay, formatRange, formatTime, londonParts, zoneLabel } from "@/lib/time/london";
 import {
-  addShiftAction, applyTemplateAction, cancelShiftAction, linkCoverAction, publishEventAction, rescheduleAction,
-  setSiteCoverAction, updateDetailsAction, updateShiftAction,
+  addShiftAction, applyTemplateAction, cancelEventAction, cancelShiftAction, completeEventAction, linkCoverAction,
+  postponeAction, publishEventAction, rescheduleAction, setSiteCoverAction, updateDetailsAction, updateShiftAction,
 } from "../actions";
 
 export const metadata: Metadata = { title: "Event" };
@@ -42,13 +43,15 @@ async function EventDetail({ params, searchParams }: { params: PageProps<"/manag
   const ep0 = londonParts(ends);
   const open = e.status === "draft" || e.status === "published" || e.status === "postponed";
 
-  const [venues, teams, templates, coverOptions, linked] = await Promise.all([
+  const [venues, teams, templates, coverOptions, linked, people] = await Promise.all([
     loadVenues(),
     loadTeams(),
     loadTemplates(),
     loadCoverageEvents(new Date(starts.getTime() - 24 * 3600_000), new Date(ends.getTime() + 24 * 3600_000)),
     e.event_type === "venue_coverage" ? loadLinkedEvents(e.id) : Promise.resolve([]),
+    loadEventPeople(e.id),
   ]);
+  const ended = new Date(e.ends_at).getTime() <= people.now;
   const venue = venues.find((v) => v.id === e.venue_id);
   const team = teams.find((t) => t.id === e.team_id);
   const coverChoices = coverOptions.filter((c) => c.venue_id === e.venue_id && c.id !== e.id);
@@ -78,7 +81,17 @@ async function EventDetail({ params, searchParams }: { params: PageProps<"/manag
         <p className="text-sm text-ink-muted">
           {[team?.name, e.opponent ? `v ${e.opponent}` : null, e.competition].filter(Boolean).join(" · ")}
         </p>
-        {e.status_reason ? <Notice tone="warn" title={e.status === "cancelled" ? "Cancelled" : "Postponed"}>{e.status_reason}</Notice> : null}
+        {e.status === "cancelled" ? (
+          <Notice tone="bad" title="Event cancelled">
+            Reason: {e.status_reason ?? "none given"}. Everyone on a duty has been told and their reminders stopped.
+          </Notice>
+        ) : null}
+        {e.status === "postponed" ? (
+          <Notice tone="warn" title="Event postponed">
+            Reason: {e.status_reason ?? "none given"}. Everyone who was on a duty has been told and asked to reconfirm. Set the new date
+            under &ldquo;Change date or times&rdquo;, then publish again. Volunteers confirm afresh once it&apos;s published.
+          </Notice>
+        ) : null}
       </header>
 
       {open && (e.status === "draft" || e.status === "postponed") ? (
@@ -97,6 +110,26 @@ async function EventDetail({ params, searchParams }: { params: PageProps<"/manag
       {open ? (
         <Card title="Site cover" actions={<CoverBadge state={coverage?.state} />}>
           <p className="text-sm">{COVER_EXPLANATION[coverage?.state ?? ""] ?? ""}</p>
+          {coverage?.state === "covered_by_provider" ? (
+            <p className="mt-2 text-sm"><Badge tone="info">External provider</Badge> No volunteer is named for provider cover.</p>
+          ) : coverage?.state !== "not_required" && people.leads.length ? (
+            <ul className="mt-2 space-y-1 text-sm">
+              {people.leads.map((l, i) => (
+                <li key={`${l.shift_id}-${i}`}>
+                  <span className="font-mono tabular-nums">{formatRange(new Date(l.starts_at), new Date(l.ends_at))}</span>{" "}
+                  {l.display_name ? (
+                    <>
+                      <strong>{l.display_name}</strong>{" "}
+                      <Badge tone={l.status === "confirmed" && l.authorised ? "good" : "warn"}>
+                        {l.status === "confirmed" ? (l.authorised ? "Site lead confirmed" : "Confirmed but authorisation lapsed") : l.status === "pending_approval" ? "Awaiting approval" : "Invited, not confirmed"}
+                      </Badge>
+                    </>
+                  ) : <Badge tone="bad">No site lead yet</Badge>}
+                  {l.source === "linked_cover" ? <span className="text-ink-muted"> · via {l.event_title}</span> : null}
+                </li>
+              ))}
+            </ul>
+          ) : null}
           {gaps.length && coverage?.state !== "not_required" ? (
             <div className="mt-2">
               <p className="text-sm font-semibold">Times with no confirmed site lead:</p>
@@ -158,9 +191,40 @@ async function EventDetail({ params, searchParams }: { params: PageProps<"/manag
       <Card title="Duties" actions={shifts.length ? <span className="text-sm">{totals.conf}/{totals.slots} confirmed{totals.pend ? ` · ${totals.pend} awaiting approval` : ""} · {totals.open} open</span> : null}>
         {shifts.length === 0 ? <p className="text-sm text-ink-muted">No duties yet. Add some below.</p> : null}
         <ul className="space-y-2">
-          {shifts.map((s) => <ShiftRow key={s.id} s={s} open={open} />)}
+          {shifts.map((s) => (
+            <ShiftRow key={s.id} s={s} open={open} people={people.rows.filter((r) => r.shift_id === s.id)}
+              started={new Date(s.starts_at).getTime() <= people.now} />
+          ))}
         </ul>
       </Card>
+
+      {e.status === "published" && ended ? (
+        <Card title="After the event">
+          <p className="mb-2 text-sm">Mark attendance on each duty above, then close the event.</p>
+          <ActionForm action={completeEventAction} submitLabel="Mark event completed" variant="secondary">
+            <input type="hidden" name="event_id" value={e.id} />
+          </ActionForm>
+        </Card>
+      ) : null}
+
+      {open && !ended ? (
+        <Card title="Postpone or cancel">
+          <div className="grid gap-4 sm:grid-cols-2">
+            {e.status === "published" ? (
+              <ActionForm action={postponeAction} submitLabel="Postpone event" variant="secondary"
+                confirm="Postpone? Everyone on a duty will be told and asked to reconfirm once you publish the new date.">
+                <input type="hidden" name="event_id" value={e.id} />
+                <Field label="Reason for postponing (volunteers will see it)"><Input name="reason" required maxLength={500} /></Field>
+              </ActionForm>
+            ) : null}
+            <ActionForm action={cancelEventAction} submitLabel="Cancel event" variant="danger"
+              confirm="Cancel this event? All duties are cancelled, volunteers are told and reminders stop. This can't be undone.">
+              <input type="hidden" name="event_id" value={e.id} />
+              <Field label="Reason for cancelling (volunteers will see it)"><Input name="reason" required maxLength={500} /></Field>
+            </ActionForm>
+          </div>
+        </Card>
+      ) : null}
 
       {open ? (
         <>
@@ -256,13 +320,13 @@ async function EventDetail({ params, searchParams }: { params: PageProps<"/manag
   );
 }
 
-function ShiftRow({ s, open }: { s: ShiftView; open: boolean }) {
+function ShiftRow({ s, open, people, started }: { s: ShiftView; open: boolean; people: RosterRow[]; started: boolean }) {
   const st = new Date(s.starts_at);
   const en = new Date(s.ends_at);
   const p0 = londonParts(st);
   const p1 = londonParts(en);
   return (
-    <li className="rounded-lg border border-line p-3">
+    <li id={`shift-${s.id}`} className="rounded-lg border border-line p-3">
       <div className="flex flex-wrap items-baseline justify-between gap-2">
         <div>
           <p className="font-semibold">{s.duty_name}</p>
@@ -279,7 +343,8 @@ function ShiftRow({ s, open }: { s: ShiftView; open: boolean }) {
         {s.approval_required ? " · approval needed" : ""}
       </p>
       {s.instructions ? <p className="mt-1 text-sm text-ink-muted">{s.instructions}</p> : null}
-      {open ? (
+      <ShiftPeople shiftId={s.id} rows={people} started={started} open={open} />
+      {open && !started ? (
         <details className="mt-2">
           <summary className="cursor-pointer text-sm font-semibold text-club">Edit or remove</summary>
           <ActionForm action={updateShiftAction} submitLabel="Save duty" variant="secondary" className="mt-2 space-y-3"

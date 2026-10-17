@@ -5,7 +5,8 @@ import { EventCard } from "@/components/event-card";
 import { Card, LinkButton } from "@/components/ui";
 import { MANAGER_ROLES } from "@/lib/auth/access";
 import { requireRole } from "@/lib/auth/dal";
-import { loadOverview } from "@/lib/data/manage";
+import Link from "next/link";
+import { loadActionQueue, loadOverview } from "@/lib/data/manage";
 import { groupByDay } from "@/lib/domain/calendar";
 import { addDays, formatDateKey, startOfLondonDay, todayKey } from "@/lib/time/london";
 
@@ -23,8 +24,9 @@ async function Dashboard() {
   const me = await requireRole(MANAGER_ROLES);
   const today = todayKey();
   const days = Array.from({ length: 7 }, (_, i) => addDays(today, i));
-  const events = await loadOverview(startOfLondonDay(today), startOfLondonDay(addDays(today, 7)));
+  const [events, queue] = await Promise.all([loadOverview(startOfLondonDay(today), startOfLondonDay(addDays(today, 7))), loadActionQueue()]);
   const live = events.filter((e) => e.status !== "cancelled" && e.status !== "completed");
+  const lateCancels = queue.filter((q) => q.kind === "cancellation").length;
   const totals = {
     events: live.length,
     open: live.reduce((n, e) => n + e.open_slots, 0),
@@ -45,21 +47,28 @@ async function Dashboard() {
         <LinkButton href="/manage/events/new">New event</LinkButton>
       </div>
 
-      <dl className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-6">
-        {[
-          ["Events", totals.events],
-          ["Open places", totals.open],
-          ["Awaiting approval", totals.pending],
-          ["Unanswered invites", totals.invited],
-          ["Site lead missing / at risk", totals.noLead],
-          ["Unpublished drafts", totals.drafts],
-        ].map(([label, n]) => (
-          <div key={label} className="rounded-xl border border-line bg-white p-3">
-            <dt className="text-xs text-ink-muted">{label}</dt>
-            <dd className="text-2xl font-bold tabular-nums text-club">{n}</dd>
-          </div>
+      {lateCancels ? (
+        <Link href="/manage/approvals" className="block rounded-xl border border-amber-600/40 bg-amber-50 p-3 font-semibold text-amber-900">
+          ⚠ {lateCancels} late cancellation request{lateCancels === 1 ? "" : "s"} waiting →
+        </Link>
+      ) : null}
+      <ul aria-label="Next 7 days at a glance" className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-6">
+        {([
+          ["Events", totals.events, "/manage/calendar"],
+          ["Open places", totals.open, "/manage/coverage?span=week"],
+          ["Awaiting approval", totals.pending, "/manage/approvals"],
+          ["Unanswered invites", totals.invited, "/manage/approvals"],
+          ["Site lead missing / at risk", totals.noLead, "/manage/coverage?span=week"],
+          ["Unpublished drafts", totals.drafts, "/manage/calendar"],
+        ] as const).map(([label, n, href]) => (
+          <li key={label}>
+            <Link href={href} className="block h-full rounded-xl border border-line bg-white p-3 hover:border-club">
+              <span className="block text-xs text-ink-muted">{label}</span>
+              <span className="block text-2xl font-bold tabular-nums text-club">{n}</span>
+            </Link>
+          </li>
         ))}
-      </dl>
+      </ul>
 
       {live.length === 0 ? (
         <Card>

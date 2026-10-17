@@ -40,9 +40,17 @@ const FRIENDLY: Record<string, string> = {
 
 type DbError = { message?: string; details?: string | null; code?: string } | null | undefined;
 
-export function friendlyError(err: DbError, fallback = "Something went wrong. Please try again."): string {
+/** Wording for errors raised while an ORGANISER acts on someone else's duty (not "you"). */
+export const ORGANISER_WORDING: Record<string, string> = {
+  overlap: "This volunteer already has another duty at an overlapping time, so this can't be confirmed.",
+  not_eligible: "This volunteer doesn't have the club authorisation this duty needs.",
+  shift_full: "This duty is already full.",
+};
+
+export function friendlyError(err: DbError, fallback = "Something went wrong. Please try again.", overrides?: Record<string, string>): string {
   if (!err) return fallback;
   const code = err.message ?? "";
+  if (overrides && code in overrides) return overrides[code];
   if (err.code === "P0001" || code in FRIENDLY) {
     const detail = typeof err.details === "string" && err.details && err.details !== code ? err.details : undefined;
     return detail ?? FRIENDLY[code] ?? fallback;

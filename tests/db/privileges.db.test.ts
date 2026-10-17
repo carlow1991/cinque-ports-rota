@@ -16,6 +16,7 @@ const ALLOWED_FOR_SIGNED_IN = [
   "set_duty_authorisation", "admin_set_volunteer_access", "admin_update_template_item", "admin_add_template_item",
   "event_shift_staffing", "event_roster", "volunteer_picker", "event_site_coverage", "manage_events_overview",
   "volunteer_rota", "volunteer_event_view", "my_duties",
+  "manage_roster", "manage_action_queue", "event_cover_leads", "admin_create_volunteer", "admin_set_coordinator_venues",
 ].sort();
 
 let db: TestDb;

@@ -3,7 +3,7 @@
 Standalone, invite-only volunteer rota for Marke Wood and Freemens Way.
 **Not part of Carl OS**, with no shared code, database or credentials.
 
-**Status:** Phase 4 (volunteer portal) complete, awaiting review. See `docs/setup.md` to run it.
+**Status:** Phase 5 (coverage and organiser tools) complete, awaiting review. See `docs/setup.md` to run it.
 
 | Document | Purpose |
 |---|---|

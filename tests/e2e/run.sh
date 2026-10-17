@@ -10,6 +10,9 @@ export NEXT_PUBLIC_SUPABASE_URL=http://127.0.0.1:54399
 export NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=sb_publishable_test
 export NEXT_PUBLIC_SITE_URL=http://localhost:3200
 export NEXT_TELEMETRY_DISABLED=1
+# Test-only secret for the fake server; invitations are "sent" to the fake, never by email.
+export SUPABASE_SECRET_KEY=sb_secret_test
+export AUTH_INVITES_ENABLED=true
 
 stop_port() { if command -v fuser >/dev/null; then fuser -k "$1/tcp" >/dev/null 2>&1 || true; fi; }
 

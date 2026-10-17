@@ -155,6 +155,15 @@ const server = createServer(async (req, res) => {
       return c ? send(res, 200, { id: c.sub, email: c.email, aud: "authenticated", role: "authenticated" }) : send(res, 401, { msg: "invalid JWT" });
     }
     if (path === "/auth/v1/logout") return send(res, 204);
+    if (path === "/auth/v1/invite" && req.method === "POST") {
+      // Admin API: only the (test) secret key may call it. Simulates the invitee accepting at once.
+      if ((req.headers.authorization ?? "") !== `Bearer ${process.env.FAKE_SECRET_KEY ?? "sb_secret_test"}`) return send(res, 401, { msg: "invalid key" });
+      const b = (await body(req)) as { email?: string };
+      const exists = await pool.query("select 1 from auth.users where lower(email) = lower($1)", [b.email ?? ""]);
+      if (exists.rowCount) return send(res, 422, { code: "email_exists", msg: "A user with this email address has already been registered" });
+      const r = await pool.query("insert into auth.users (email, email_confirmed_at) values (lower($1), now()) returning id, email", [b.email]);
+      return send(res, 200, { id: r.rows[0].id, email: r.rows[0].email, aud: "authenticated", role: "authenticated" });
+    }
 
     // ---------------- rpc ----------------
     const rpc = path.match(/^\/rest\/v1\/rpc\/([a-z_][a-z0-9_]*)$/);

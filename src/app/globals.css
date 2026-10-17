@@ -54,3 +54,8 @@ body {
   /* White halo keeps the ring visible on navy as well as on white. */
   box-shadow: 0 0 0 2px #ffffff;
 }
+
+@media print {
+  body { background: #ffffff; }
+  @page { margin: 12mm; }
+}

@@ -13,7 +13,8 @@
     "test:db": "vitest run tests/db",
     "e2e:phase3": "tests/e2e/run.sh tests/e2e/phase3-smoke.mts",
     "e2e:phase4": "tests/e2e/run.sh tests/e2e/phase4-volunteer.mts",
-    "e2e": "tests/e2e/run.sh tests/e2e/phase3-smoke.mts --build && tests/e2e/run.sh tests/e2e/phase4-volunteer.mts"
+    "e2e": "tests/e2e/run.sh tests/e2e/phase3-smoke.mts --build && tests/e2e/run.sh tests/e2e/phase4-volunteer.mts && tests/e2e/run.sh tests/e2e/phase5-organiser.mts",
+    "e2e:phase5": "tests/e2e/run.sh tests/e2e/phase5-organiser.mts"
   },
   "dependencies": {
     "@supabase/ssr": "^0.12.7",

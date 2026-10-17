@@ -56,5 +56,14 @@
 | `event_roster(e)` | Volunteers **on** that published event; organisers | **Names only** |
 | `volunteer_picker(shift)` | Coordinator (venue) / admin | Names plus eligibility and clash flags. No contact details. |
 | `event_site_coverage(e)` | Coordinator (venue) / admin | Full-window cover from confirmed, authorised leads |
+| `manage_roster(from, to, venue, event)` | Coordinator (venue) / admin | Names, **phone** and status of people on duties; never email |
+| `manage_action_queue()` | Coordinator (venue) / admin | Approvals, late cancellations, unanswered invitations |
+| `event_cover_leads(e)` | Coordinator (venue) / admin | Site-lead names and authorisation state; provider cover has no name |
+| `admin_create_volunteer(email, name, role)` | **Admin** | Normalised email, no duplicates, last-admin guard |
+| `admin_set_coordinator_venues(vol, venues[])` | **Admin** | Coordinators only; atomic replace |
+| `volunteer_rota`, `volunteer_event_view`, `my_duties` (Phase 4) | Any active volunteer | Own status and anonymous counts only |
+
+**Function execute rights (Phase 4 fix):** every function in the database is locked by default; only the functions listed above can be called, and only by signed-in users (`tests/db/privileges.db.test.ts`).
+**Elevated key:** the server-only secret key is used for one thing, sending an Auth invitation after `admin_create_volunteer()`, and only when `AUTH_INVITES_ENABLED=true`.
 
 Internal helpers (`_has_overlap`, `missing_authorisations`, `_enqueue`, …) have **no** client execute grant.

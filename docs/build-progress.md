@@ -249,11 +249,13 @@ Q1 repository and build location · Q2 timings not given in the Catalogue · Q3 
 - [x] Rota (venue tabs, type/team filters, "places you can take", next weeks), Event (duties with plain-English reasons, sign up / request approval / accept / decline, names-only roster), My Duties (4 tabs, withdraw before cut-off, late cancellation request, add to calendar), Profile (name, phone, venue preference, privacy, sign out)
 - [x] Tests: 272 unit + database; 37/37 phone-width volunteer checks (×3 runs) incl. keyboard-only, privacy, lost race, suspension; Phase 3 organiser checks still 25/25
 
-### Phase 5 — Coverage & admin control
-- [ ] Allocation, approvals, coordinator scope
-- [ ] Coverage dashboard, time axis, missing lead, provider distinction
-- [ ] Printable rota, attendance, postpone/cancel/reconfirm
-- [ ] Tests; commit
+### Phase 5 — Coverage & admin control ✅ (17 Oct 2026, awaiting review)
+- [x] Venue-scoped organiser reads: roster (with phone), action queue, site-lead names (`20261017000300`)
+- [x] Lead-loss alerts to every linked event via trigger (`20261017000400`)
+- [x] Event page: people per duty with status in words, approve/decline, remove (reason), late-cancellation decisions, attendance, complete; postpone/cancel with reasons; named lead vs provider cover
+- [x] Invite page with eligibility/clash picker; Needs action queue; Coverage (missing lead with exact gaps, provider separate, gaps by venue/date/team/duty, expected-on-site table); printable day rota
+- [x] Volunteers admin: add + invite (switch, default off), access/suspend, coordinator venues, dated authorisations; coordinator read-only scoped list
+- [x] Tests: 290 unit + database; 47/47 organiser phone checks (×3); Phase 3 25/25 and Phase 4 37/37 still pass
 
 ### Phase 6 — Email, polish, security
 - [ ] Outbox worker, templates, idempotency, retries, reminders
