@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { decideAccess, homePathFor, linkAllowsEntry, MANAGER_ROLES, type VolunteerRecord } from "@/lib/auth/access";
-import { isPublicPath, safeNextPath } from "@/lib/auth/paths";
+import { isPublicPath, returnPathAfterLogin, safeNextPath } from "@/lib/auth/paths";
 
 const vol = (over: Partial<VolunteerRecord> = {}): VolunteerRecord => ({
   id: "v1",
@@ -79,5 +79,21 @@ describe("isPublicPath", () => {
     expect(isPublicPath("/api/cron/outbox")).toBe(true);
     expect(isPublicPath("/api/cronx")).toBe(false);
     expect(isPublicPath("/api/other")).toBe(false);
+  });
+});
+
+describe("returnPathAfterLogin (deep link back to the duty after sign-in)", () => {
+  const ev = "/rota/2b1d0c1e-7f7e-4b6a-9a59-3f1c2d4e5f60";
+  it("returns to the page they asked for", () => {
+    expect(returnPathAfterLogin(ev, "/rota", false)).toBe(ev);
+    expect(returnPathAfterLogin("/my-duties?tab=invited", "/rota", false)).toBe("/my-duties?tab=invited");
+    expect(returnPathAfterLogin("/manage/events/x", "/manage", true)).toBe("/manage/events/x");
+  });
+  it("falls back to home for missing, unsafe, public or not-permitted paths", () => {
+    for (const bad of [undefined, "", "/", "//evil.example", "https://evil.example/x", "/\\evil", "/login", "/login?next=/rota", "/auth/callback"]) {
+      expect(returnPathAfterLogin(bad, "/rota", false)).toBe("/rota");
+    }
+    expect(returnPathAfterLogin("/manage", "/rota", false)).toBe("/rota");
+    expect(returnPathAfterLogin("/manage?range=7", "/rota", false)).toBe("/rota");
   });
 });

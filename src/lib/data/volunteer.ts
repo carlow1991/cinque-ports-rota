@@ -64,6 +64,18 @@ export async function loadVolunteerEvent(eventId: string) {
   };
 }
 
+export type Opportunity = {
+  shift_id: string; event_id: string; event_title: string; event_type: string; venue_name: string; team_name: string | null;
+  duty_name: string; responsibilities: string[]; starts_at: string; ends_at: string; open_slots: number;
+  approval_required: boolean; is_demo: boolean;
+};
+
+/** Duties the caller can take right now (same rules as the rota's "places you can take"). */
+export async function loadOpportunities(from: Date, to: Date, limit = 6): Promise<Opportunity[]> {
+  const sb = await createClient();
+  return must(await sb.rpc("volunteer_opportunities", { p_from: from.toISOString(), p_to: to.toISOString(), p_limit: limit }), "duties you can take");
+}
+
 export async function loadMyDuties(): Promise<MyDuty[]> {
   const sb = await createClient();
   return must(await sb.rpc("my_duties"), "your duties");

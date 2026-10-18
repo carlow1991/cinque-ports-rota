@@ -15,8 +15,8 @@ export const codeSchema = z
   .pipe(z.string().regex(/^\d{6,10}$/, { message: "Enter the code from your email (numbers only)." }));
 
 export type LoginState =
-  | { step: "email"; error?: string; email?: string }
-  | { step: "code"; email: string; notice: string; error?: string };
+  | { step: "email"; error?: string; email?: string; next?: string }
+  | { step: "code"; email: string; notice: string; error?: string; next?: string };
 
 /** Identical wording whether or not the address is invited, so the form never reveals who is on the club list. */
 export const GENERIC_SENT_NOTICE =

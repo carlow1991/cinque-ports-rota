@@ -142,3 +142,42 @@ describe("my_duties", () => {
     expect(r).toEqual({ status: "confirmed", cancellation_pending: true });
   });
 });
+
+describe("volunteer_opportunities", () => {
+  type O = { shift_id: string; duty_name: string; open_slots: number; event_title: string };
+  const opps = (who: Person) => db.asUser(who.uid, (c) => rows<O>(c,
+    "select shift_id, duty_name, open_slots, event_title from public.volunteer_opportunities($1, $2)", [inHours(-48), inHours(1000)]));
+
+  it("lists only duties I can take now: not restricted, clashing, full, organiser-filled, draft or past", async () => {
+    const fresh = await person(db, "volunteer", { name: "Fresh Face" });
+    const ev = await makeEvent(db, { venue: fw, start: inHours(600), end: inHours(602), title: "Opps fixture" });
+    const ok = await makeShift(db, { event: ev, duty: "pitch_setup", start: inHours(599), end: inHours(600), required: 2 });
+    await makeShift(db, { event: ev, duty: "site_lead", start: inHours(599), end: inHours(603) });                    // restricted
+    await makeShift(db, { event: ev, duty: "general_support", start: inHours(600), end: inHours(602), signup: false }); // organiser fills
+    const f = await makeShift(db, { event: ev, duty: "cleaning", start: inHours(602), end: inHours(603), required: 1 });
+    await seedAssignment(db, f, other.id, "confirmed");                                                               // full
+    const gate = await makeShift(db, { event: ev, duty: "gate_admissions", start: inHours(600), end: inHours(601) });
+    const elsewhere = await makeEvent(db, { venue: mw, start: inHours(600), end: inHours(601) });
+    await seedAssignment(db, await makeShift(db, { event: elsewhere, duty: "refreshments", start: inHours(600), end: inHours(601) }), fresh.id, "confirmed"); // clash with gate
+    const d = await makeEvent(db, { venue: fw, start: inHours(610), end: inHours(611), status: "draft" });
+    await makeShift(db, { event: d, duty: "cleaning", start: inHours(610), end: inHours(611) });                    // draft
+    const o = (await opps(fresh)).filter((x) => x.event_title === "Opps fixture");
+    expect(o.map((x) => x.shift_id)).toEqual([ok]);
+    expect(o[0]).toMatchObject({ open_slots: 2 });
+    expect(gate).not.toBe(ok);
+  });
+
+  it("agrees with the rota's 'places you can take' count", async () => {
+    const [rota] = await asMe<{ eligible_open_slots: number }>(
+      "select eligible_open_slots from public.volunteer_rota($1, $2) where event_id = $3", [inHours(-48), inHours(1000), pub]);
+    const total = (await opps(me)).filter((x) => x.event_title === "Published fixture").reduce((n, x) => n + x.open_slots, 0);
+    expect(total).toBe(rota.eligible_open_slots);
+  });
+
+  it("suspended or signed-out people get nothing; no names or contact details are returned", async () => {
+    expect(await opps(suspended)).toEqual([]);
+    const all = JSON.stringify(await db.asUser(other.uid, (c) => rows(c, "select * from public.volunteer_opportunities($1, $2)", [inHours(-48), inHours(1000)])));
+    expect(all).not.toContain("07700");
+    expect(all).not.toContain("@");
+  });
+});

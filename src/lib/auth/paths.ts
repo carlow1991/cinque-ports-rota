@@ -22,3 +22,15 @@ export function safeNextPath(next: string | null | undefined, fallback = "/"): s
     return fallback;
   }
 }
+
+/**
+ * Where to go after sign-in: the page they originally asked for when that is safe and useful,
+ * otherwise their normal home. Never a public page (avoids /login loops), and never the organiser
+ * area for a volunteer (that page would refuse them anyway).
+ */
+export function returnPathAfterLogin(next: string | null | undefined, home: string, isManager: boolean): string {
+  const p = safeNextPath(next, "");
+  if (!p || p === "/" || isPublicPath(p.split("?")[0])) return home;
+  if (!isManager && (p === "/manage" || p.startsWith("/manage/") || p.startsWith("/manage?"))) return home;
+  return p;
+}

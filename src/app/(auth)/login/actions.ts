@@ -4,7 +4,8 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { siteUrl } from "@/lib/env";
 import { log } from "@/lib/log";
-import { linkAllowsEntry, homePathFor } from "@/lib/auth/access";
+import { linkAllowsEntry, homePathFor, MANAGER_ROLES } from "@/lib/auth/access";
+import { returnPathAfterLogin } from "@/lib/auth/paths";
 import { resolveAccess } from "@/lib/auth/dal";
 import {
   codeSchema,
@@ -22,12 +23,14 @@ import {
  */
 export async function requestCode(_prev: LoginState, formData: FormData): Promise<LoginState> {
   const raw = formData.get("email");
+  const next = nextOf(formData);
   const parsed = emailSchema.safeParse(raw);
   if (!parsed.success) {
     return {
       step: "email",
       error: parsed.error.issues[0]?.message ?? "Enter a valid email address.",
       email: typeof raw === "string" ? raw.slice(0, 254) : undefined,
+      next,
     };
   }
   const email = parsed.data;
@@ -45,7 +48,7 @@ export async function requestCode(_prev: LoginState, formData: FormData): Promis
     log.warn("auth", "otp request not sent", { status: error.status, code: error.code });
   }
 
-  return { step: "code", email, notice: GENERIC_SENT_NOTICE };
+  return { step: "code", email, notice: GENERIC_SENT_NOTICE, next };
 }
 
 /**
@@ -56,7 +59,8 @@ export async function verifyCode(prev: LoginState, formData: FormData): Promise<
   const email = emailSchema.safeParse(formData.get("email"));
   if (!email.success) return { step: "email", error: "Please start again with your email address." };
 
-  const back: LoginState = { step: "code", email: email.data, notice: prev.step === "code" ? prev.notice : GENERIC_SENT_NOTICE };
+  const next = nextOf(formData);
+  const back: LoginState = { step: "code", email: email.data, notice: prev.step === "code" ? prev.notice : GENERIC_SENT_NOTICE, next };
 
   const code = codeSchema.safeParse(formData.get("code"));
   if (!code.success) return { ...back, error: code.error.issues[0]?.message ?? GENERIC_CODE_ERROR };
@@ -76,7 +80,14 @@ export async function verifyCode(prev: LoginState, formData: FormData): Promise<
     await supabase.auth.signOut();
     return { step: "email", error: NO_ACCESS_ERROR };
   }
-  redirect(homePathFor(access.volunteer.role));
+  const role = access.volunteer.role;
+  redirect(returnPathAfterLogin(next, homePathFor(role), MANAGER_ROLES.includes(role)));
+}
+
+/** The page they were trying to reach (a hidden form field, validated again before use). */
+function nextOf(formData: FormData): string | undefined {
+  const v = formData.get("next");
+  return typeof v === "string" && v.length > 0 && v.length <= 300 ? v : undefined;
 }
 
 /** Single entry point for the login form: dispatches on the hidden "intent" field. */

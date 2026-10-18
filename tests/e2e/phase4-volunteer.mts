@@ -58,11 +58,11 @@ const [draft] = await q<{ id: string }>("select id from events where title = 'E2
 const { ctx, page } = await newPhone();
 const t0 = Date.now();
 await signIn(page, "vol@test.local");
-await page.getByRole("link", { name: /E2E Sunday fixture/ }).click();
+await page.getByRole("link", { name: /^\d\d:\d\d–\d\d:\d\d.*E2E Sunday fixture/ }).click();
 await page.waitForURL(/\/rota\/[0-9a-f-]{36}/);
 const before = await mainText(page);
 check("before joining the event, other volunteers' names are not shown", !before.includes("Other Person"));
-await dutyCard(page, "Pitch and equipment setup").getByRole("button", { name: "Sign up" }).click();
+await dutyCard(page, "Pitch and equipment setup").getByRole("button", { name: /^Take this duty/ }).click();
 await dutyCard(page, "Pitch and equipment setup").getByText("You're confirmed").waitFor();
 const elapsed = (Date.now() - t0) / 1000;
 const [setupRow] = await q<{ status: string }>(
@@ -89,7 +89,7 @@ await q(
   `insert into assignments (shift_id, volunteer_id, status, source)
    select s.id, (select id from volunteers where email = 'filler@test.local'), 'confirmed', 'self_signup'
    from event_shifts s join duty_types d on d.id = s.duty_type_id where s.event_id = $1 and d.code = 'refreshments'`, [sunday.id]);
-await dutyCard(page, "Refreshments / tea bar").getByRole("button", { name: "Sign up" }).click();
+await dutyCard(page, "Refreshments / tea bar").getByRole("button", { name: /^Take this duty/ }).click();
 await dutyCard(page, "Refreshments / tea bar").getByRole("alert").waitFor();
 const fullMsg = (await dutyCard(page, "Refreshments / tea bar").getByRole("alert").textContent()) ?? "";
 check("race lost: 'Shift now full; please contact the organiser'", /Shift now full; please contact the organiser/.test(fullMsg), fullMsg);
@@ -99,7 +99,7 @@ const [refresh] = await q<{ n: number }>(
 check("nothing was saved for the lost race", refresh.n === 0);
 
 // 5. Approval-required duty, operated by KEYBOARD only.
-const gateBtn = dutyCard(page, "Gate / admission collection").getByRole("button", { name: "Request this duty" });
+const gateBtn = dutyCard(page, "Gate / admission collection").getByRole("button", { name: /^Request this duty/ });
 await gateBtn.focus();
 await page.keyboard.press("Enter");
 await dutyCard(page, "Gate / admission collection").getByText("Awaiting organiser approval").waitFor();

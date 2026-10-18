@@ -19,6 +19,7 @@
     "e2e:phase7": "tests/e2e/run.sh tests/e2e/phase7-pilot.mts",
     "e2e:improve02": "tests/e2e/run.sh tests/e2e/improve-truthful-states.mts",
     "e2e:improve03": "tests/e2e/run.sh tests/e2e/improve-organiser-overview.mts",
+    "e2e:improve04": "tests/e2e/run.sh tests/e2e/improve-volunteer-home.mts",
     "check-env": "node scripts/check-env.mts"
   },
   "dependencies": {

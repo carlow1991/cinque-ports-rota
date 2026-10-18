@@ -2,10 +2,12 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { Suspense } from "react";
 import { PageLoading } from "@/components/app-header";
-import { Badge, DemoBadge, EVENT_TYPE_LABEL } from "@/components/ui";
+import { Badge, DemoBadge, EVENT_TYPE_LABEL, Notice } from "@/components/ui";
 import { requireVolunteer } from "@/lib/auth/dal";
-import { loadRota, loadVenueAndTeamOptions, type RotaEvent } from "@/lib/data/volunteer";
-import { addDays, formatDateKey, formatRange, londonParts, startOfLondonDay, todayKey } from "@/lib/time/london";
+import { loadMyDutiesNow, loadOpportunities, loadRota, loadVenueAndTeamOptions, type MyDuty, type Opportunity, type RotaEvent } from "@/lib/data/volunteer";
+import { formatDuration, nextConfirmed } from "@/lib/domain/duty-time";
+import { groupMyDuties } from "@/lib/domain/my-duties";
+import { addDays, formatDateKey, formatDay, formatLongDay, formatRange, formatTime, londonParts, startOfLondonDay, todayKey } from "@/lib/time/london";
 
 export const metadata: Metadata = { title: "Rota" };
 
@@ -27,6 +29,8 @@ async function Rota({ searchParams }: { searchParams: PageProps<"/rota">["search
   const team = typeof sp.team === "string" ? sp.team : "";
   const onlyOpen = sp.open === "1";
   const weeks = Math.min(26, Math.max(WEEKS_STEP, Number(sp.weeks) || WEEKS_STEP));
+  // The plain /rota address is the volunteer's home: their next duty and what they can take first.
+  const landing = !venue && !type && !team && !onlyOpen && weeks === WEEKS_STEP;
 
   const today = todayKey();
   const [all, opts] = await Promise.all([
@@ -52,8 +56,12 @@ async function Rota({ searchParams }: { searchParams: PageProps<"/rota">["search
     <section aria-labelledby="rota-heading" className="space-y-4">
       <div>
         <h1 id="rota-heading" className="text-2xl font-bold text-club">Rota</h1>
-        <p className="text-sm text-ink-muted">Hi {me.displayName.split(" ")[0]}. Pick a duty you can help with. All times are UK time.</p>
+        <p className="text-sm text-ink-muted">Hi {me.displayName.split(" ")[0]}. All times are UK time.</p>
       </div>
+
+      {landing ? <Suspense fallback={<PageLoading label="Loading your duties…" />}><VolunteerHome /></Suspense> : null}
+
+      <h2 id="all-events" className="pt-2 text-lg font-semibold text-club">All events</h2>
 
       <nav aria-label="Venue" className="flex flex-wrap gap-1 rounded-xl bg-white p-1 text-center text-sm">
         {[{ id: "", name: "All" }, ...opts.venues].map((v) => {
@@ -141,5 +149,113 @@ function RotaCard({ e }: { e: RotaEvent }) {
         )}
       </p>
     </Link>
+  );
+}
+
+/* ---------------- Volunteer home (brief §3) ---------------- */
+
+async function VolunteerHome() {
+  const today = todayKey();
+  const [{ duties, now }, opps] = await Promise.all([
+    loadMyDutiesNow(),
+    loadOpportunities(startOfLondonDay(today), startOfLondonDay(addDays(today, 56)), 6),
+  ]);
+  const { groups, recentChanges } = groupMyDuties(duties, now);
+  const next = nextConfirmed(duties, now);
+  const invites = groups.invited.length;
+  const pending = groups.pending.length;
+  const nothingYet = !next && invites === 0 && pending === 0;
+
+  return (
+    <div className="space-y-4">
+      {recentChanges.map((d) => (
+        <Notice key={d.assignment_id} tone="warn" title={d.status === "cancelled" ? "Duty cancelled" : "You've been taken off a duty"}>
+          {d.duty_name}, {d.event_title}, {formatDay(new Date(d.starts_at))}. {d.event_status_reason ?? d.removal_reason ?? ""}
+        </Notice>
+      ))}
+
+      {next ? <NextDutyCard d={next} /> : null}
+
+      {invites || pending ? (
+        <section aria-labelledby="waiting-h" className="rounded-xl border border-line bg-white p-3">
+          <h2 id="waiting-h" className="text-base font-semibold text-club">Waiting for you</h2>
+          <ul className="mt-1 space-y-1 text-sm">
+            {invites ? (
+              <li><Link href="/my-duties?tab=invited" className="font-semibold text-club-blue underline">
+                {invites} {invites === 1 ? "invitation" : "invitations"} to answer →</Link></li>
+            ) : null}
+            {pending ? (
+              <li><Link href="/my-duties?tab=pending" className="text-club-blue underline">
+                {pending} {pending === 1 ? "duty is" : "duties are"} waiting for an organiser to approve →</Link></li>
+            ) : null}
+          </ul>
+        </section>
+      ) : null}
+
+      {nothingYet ? (
+        <div className="rounded-xl border border-dashed border-line bg-white p-4">
+          <p className="font-semibold">You&apos;re not down for any duties yet.</p>
+          <p className="text-sm text-ink-muted">
+            {opps.length ? "Here are some you can take. Even an hour makes a difference." : "Nothing is open for you right now. Have a look at all events below, or check back soon."}
+          </p>
+        </div>
+      ) : null}
+
+      {opps.length ? (
+        <section aria-labelledby="opps-h" className="space-y-2">
+          <h2 id="opps-h" className="text-lg font-semibold text-club">Duties you can take</h2>
+          <ul className="space-y-2">{opps.map((o) => <OpportunityCard key={o.shift_id} o={o} />)}</ul>
+        </section>
+      ) : null}
+    </div>
+  );
+}
+
+function NextDutyCard({ d }: { d: MyDuty }) {
+  const st = new Date(d.starts_at), en = new Date(d.ends_at);
+  return (
+    <section aria-labelledby="next-h" className="rounded-xl border-2 border-club bg-white p-4">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <h2 id="next-h" className="text-base font-semibold text-club">Your next duty</h2>
+        {d.cancellation_pending ? <Badge tone="warn">You&apos;ve asked to cancel</Badge> : <Badge tone="good">✓ Confirmed</Badge>}
+      </div>
+      <p className="mt-1 text-lg font-bold">{formatLongDay(st)}</p>
+      <p className="text-base">
+        <strong>Arrive {formatTime(st)}</strong> · Finish {formatTime(en)} <span className="text-ink-muted">({formatDuration(st, en)})</span>
+      </p>
+      <p className="mt-1 font-semibold">{d.duty_name}</p>
+      {d.responsibilities.length ? <p className="text-sm text-ink-muted">Includes: {d.responsibilities.join(", ")}</p> : null}
+      <p className="text-sm">
+        <Link href={`/rota/${d.event_id}`} className="text-club-blue underline">{d.event_title}</Link> · {d.venue_name}
+      </p>
+      {d.venue_address ? <p className="text-sm text-ink-muted">{d.venue_address}</p> : null}
+      {d.event_status === "postponed" ? <p className="mt-1 text-sm font-semibold text-amber-900">⚠ Event postponed: {d.event_status_reason}</p> : null}
+      {d.shift_instructions ? <p className="mt-2 whitespace-pre-line text-sm">{d.shift_instructions}</p> : null}
+      <p className="mt-3 flex flex-wrap gap-x-4 gap-y-2 text-sm">
+        <a href={`/my-duties/${d.assignment_id}/calendar`} className="font-semibold text-club-blue underline">Add to my calendar</a>
+        <Link href="/my-duties" className="text-club-blue underline">All my duties</Link>
+      </p>
+    </section>
+  );
+}
+
+function OpportunityCard({ o }: { o: Opportunity }) {
+  const st = new Date(o.starts_at), en = new Date(o.ends_at);
+  return (
+    <li>
+      <Link href={`/rota/${o.event_id}#shift-${o.shift_id}`} className="block rounded-xl border border-line bg-white p-3 hover:border-club"
+        aria-label={`${o.duty_name}, ${formatDay(st)} ${formatTime(st)} to ${formatTime(en)}, ${o.event_title}, ${o.venue_name}. ${o.open_slots} ${o.open_slots === 1 ? "place" : "places"} left. See details`}>
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="font-semibold text-club">{o.duty_name}</span>
+          <DemoBadge show={o.is_demo} />
+          {o.approval_required ? <Badge tone="info">Needs approval</Badge> : null}
+        </div>
+        <p className="text-sm"><span className="font-semibold">{formatDay(st)}</span> · {formatRange(st, en)} · {formatDuration(st, en)}</p>
+        <p className="text-sm text-ink-muted">{o.event_title} · {o.venue_name}{o.team_name ? ` · ${o.team_name}` : ""}</p>
+        <p className="mt-1 text-sm font-semibold text-club-blue">
+          {o.open_slots} {o.open_slots === 1 ? "place" : "places"} left · See details →
+        </p>
+      </Link>
+    </li>
   );
 }

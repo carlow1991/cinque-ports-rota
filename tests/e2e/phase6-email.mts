@@ -78,9 +78,9 @@ check("header: no X-Powered-By", !h.has("x-powered-by"));
 // ---------------------------------------------------------------------------------------------
 const vol = await phone("vol@test.local");
 const V = vol.page;
-await V.getByRole("link", { name: /E2E Sunday fixture/ }).click();
+await V.getByRole("link", { name: /^\d\d:\d\d–\d\d:\d\d.*E2E Sunday fixture/ }).click();
 await V.waitForURL(/\/rota\/[0-9a-f-]{36}/);
-await dutyCard(V, "Pitch and equipment setup").getByRole("button", { name: "Sign up" }).click();
+await dutyCard(V, "Pitch and equipment setup").getByRole("button", { name: /^Take this duty/ }).click();
 await dutyCard(V, "Pitch and equipment setup").getByText("You're confirmed").waitFor();
 const confirm = await waitFor(async () => (await mail()).sent.find((m) => m.subject.startsWith("You're confirmed") && m.to[0] === "vol@test.local"));
 check("sign-up confirmation sent straight after the change (no cron needed)", Boolean(confirm));

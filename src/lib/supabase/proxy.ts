@@ -33,8 +33,11 @@ export async function updateSession(request: NextRequest) {
 
   if (!signedIn && !isPublicPath(request.nextUrl.pathname)) {
     const url = request.nextUrl.clone();
+    // Remember the page they asked for so sign-in can return them there (validated on use).
+    const wanted = `${request.nextUrl.pathname}${request.nextUrl.search}`;
     url.pathname = "/login";
     url.search = "";
+    if (request.nextUrl.pathname !== "/" && wanted.length <= 300) url.searchParams.set("next", wanted);
     const redirect = NextResponse.redirect(url);
     // Keep any refreshed/cleared auth cookies on the redirect.
     for (const c of response.cookies.getAll()) redirect.cookies.set(c);

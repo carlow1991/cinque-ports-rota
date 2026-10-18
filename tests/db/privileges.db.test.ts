@@ -15,7 +15,7 @@ const ALLOWED_FOR_SIGNED_IN = [
   "update_shift", "cancel_shift", "complete_event", "create_event", "apply_template", "add_shift", "link_venue_cover",
   "set_duty_authorisation", "admin_set_volunteer_access", "admin_update_template_item", "admin_add_template_item",
   "event_shift_staffing", "event_roster", "volunteer_picker", "event_site_coverage", "manage_events_overview",
-  "volunteer_rota", "volunteer_event_view", "my_duties",
+  "volunteer_rota", "volunteer_event_view", "my_duties", "volunteer_opportunities",
   "manage_roster", "manage_action_queue", "event_cover_leads", "admin_create_volunteer", "admin_set_coordinator_venues",
   "admin_outbox_summary", "admin_retry_failed_emails",
 ].sort();

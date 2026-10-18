@@ -12,10 +12,12 @@ type ServerAction = (prev: ActionResult | null, fd: FormData) => Promise<ActionR
  * Success is shown only after the server confirms the change was saved.
  */
 export function ActionForm({
-  action, submitLabel, pendingLabel = "Saving…", variant = "primary", children, className = "space-y-3", confirm,
+  action, submitLabel, pendingLabel = "Saving…", variant = "primary", children, className = "space-y-3", confirm, submitAriaLabel,
 }: {
   action: ServerAction; submitLabel: string; pendingLabel?: string; variant?: "primary" | "secondary" | "danger";
   children?: ReactNode; className?: string; confirm?: string;
+  /** Fuller accessible name for repeated buttons, e.g. "Take this duty: Pitch setup, Saturday 31 October". */
+  submitAriaLabel?: string;
 }) {
   const [result, formAction, pending] = useActionState(action, null);
   const ready = useHydrated();
@@ -27,7 +29,7 @@ export function ActionForm({
     >
       {children}
       <div className="flex flex-wrap items-center gap-3">
-        <Button type="submit" variant={variant} disabled={pending || !ready}>{pending ? pendingLabel : submitLabel}</Button>
+        <Button type="submit" variant={variant} disabled={pending || !ready} aria-label={pending ? undefined : submitAriaLabel}>{pending ? pendingLabel : submitLabel}</Button>
         <FormMessage result={result} />
       </div>
     </form>

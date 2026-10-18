@@ -7,6 +7,7 @@ import { PageLoading } from "@/components/app-header";
 import { Badge, DemoBadge, EVENT_TYPE_LABEL, Notice } from "@/components/ui";
 import { requireVolunteer } from "@/lib/auth/dal";
 import { loadVolunteerEvent, type VolunteerShift } from "@/lib/data/volunteer";
+import { formatDuration } from "@/lib/domain/duty-time";
 import { formatLongDay, formatRange, formatTime, zoneLabel } from "@/lib/time/london";
 import { acceptAction, declineAction, signUpAction } from "../../actions";
 
@@ -43,9 +44,10 @@ async function EventView({ params }: { params: PageProps<"/rota/[eventId]">["par
         <h1 className="text-2xl font-bold text-club">{e.title}</h1>
         <p>{formatLongDay(starts)}</p>
         <p>
-          {formatRange(starts, ends)} {zoneLabel(starts)}
-          {e.kickoff_at ? ` · kick-off ${formatTime(new Date(e.kickoff_at))}` : ""}
+          <span className="text-ink-muted">Event</span> {formatRange(starts, ends)} {zoneLabel(starts)}
+          {e.kickoff_at ? <> · <span className="text-ink-muted">Kick-off</span> {formatTime(new Date(e.kickoff_at))}</> : null}
         </p>
+        <p className="text-sm text-ink-muted">Each duty below has its own arrive and finish times.</p>
         <p className="text-ink-muted">
           {venue?.name}{teamName ? ` · ${teamName}` : ""}{e.opponent ? ` · v ${e.opponent}` : ""}{e.competition ? ` · ${e.competition}` : ""}
         </p>
@@ -60,7 +62,7 @@ async function EventView({ params }: { params: PageProps<"/rota/[eventId]">["par
       <section aria-labelledby="duties-h" className="space-y-3">
         <h2 id="duties-h" className="text-lg font-semibold text-club">Duties</h2>
         {shifts.length === 0 ? <p className="text-ink-muted">No volunteer duties for this event.</p> : null}
-        {shifts.map((s) => <DutyCard key={s.shift_id} s={s} names={namesByShift.get(s.shift_id) ?? []} open={e.status === "published"} />)}
+        {shifts.map((s) => <DutyCard key={s.shift_id} s={s} names={namesByShift.get(s.shift_id) ?? []} open={e.status === "published"} day={formatLongDay(new Date(s.starts_at))} />)}
       </section>
 
       <p className="text-xs text-ink-muted">
@@ -70,15 +72,15 @@ async function EventView({ params }: { params: PageProps<"/rota/[eventId]">["par
   );
 }
 
-function DutyCard({ s, names, open }: { s: VolunteerShift; names: string[]; open: boolean }) {
+function DutyCard({ s, names, open, day }: { s: VolunteerShift; names: string[]; open: boolean; day: string }) {
   const st = new Date(s.starts_at);
   const en = new Date(s.ends_at);
   return (
-    <div className="rounded-xl border border-line bg-white p-3">
-      <div className="flex flex-wrap items-baseline justify-between gap-2">
-        <h3 className="font-semibold">{s.duty_name}</h3>
-        <span className="font-mono text-sm tabular-nums">{formatRange(st, en)}</span>
-      </div>
+    <div id={`shift-${s.shift_id}`} className="scroll-mt-20 rounded-xl border border-line bg-white p-3 target:border-2 target:border-club">
+      <h3 className="font-semibold">{s.duty_name}</h3>
+      <p className="text-sm">
+        <strong>Arrive {formatTime(st)}</strong> · Finish {formatTime(en)} <span className="text-ink-muted">({formatDuration(st, en)})</span>
+      </p>
       {s.responsibilities.length ? <p className="text-sm text-ink-muted">Includes: {s.responsibilities.join(", ")}</p> : null}
       {s.instructions ? <p className="mt-1 whitespace-pre-line text-sm">{s.instructions}</p> : null}
       <p className="mt-1 text-sm">
@@ -87,12 +89,12 @@ function DutyCard({ s, names, open }: { s: VolunteerShift; names: string[]; open
         {s.open_slots ? ` · ${s.open_slots} ${s.open_slots === 1 ? "place" : "places"} left` : " · full"}
       </p>
       {names.length ? <p className="text-sm text-ink-muted">Going: {names.join(", ")}</p> : null}
-      <div className="mt-2"><DutyAction s={s} open={open} /></div>
+      <div className="mt-2"><DutyAction s={s} open={open} day={day} /></div>
     </div>
   );
 }
 
-function DutyAction({ s, open }: { s: VolunteerShift; open: boolean }) {
+function DutyAction({ s, open, day }: { s: VolunteerShift; open: boolean; day: string }) {
   if (s.my_status === "confirmed")
     return <p className="font-semibold text-ok">✓ You&apos;re confirmed. <Link href="/my-duties" className="font-normal text-club-blue underline">Manage in My Duties</Link></p>;
   if (s.my_status === "pending_approval")
@@ -119,7 +121,9 @@ function DutyAction({ s, open }: { s: VolunteerShift; open: boolean }) {
     return <p className="text-sm text-ink-muted">🔒 Needs a club authorisation for: {s.missing_authorisations.join(", ")}. Speak to an organiser if you think you should have it.</p>;
   if (s.has_overlap) return <p className="text-sm text-ink-muted">You already have a duty at this time.</p>;
   return (
-    <ActionForm action={signUpAction} submitLabel={s.approval_required ? "Request this duty" : "Sign up"} pendingLabel="Saving…" className="flex flex-wrap items-center gap-2">
+    <ActionForm action={signUpAction} submitLabel={s.approval_required ? "Request this duty" : "Take this duty"} pendingLabel="Saving…"
+      submitAriaLabel={`${s.approval_required ? "Request this duty" : "Take this duty"}: ${s.duty_name}, ${day}, ${formatTime(new Date(s.starts_at))} to ${formatTime(new Date(s.ends_at))}`}
+      className="flex flex-wrap items-center gap-2">
       <input type="hidden" name="shift_id" value={s.shift_id} />
       {s.approval_required ? <span className="w-full text-xs text-ink-muted">An organiser approves this duty. Your place is held while they decide.</span> : null}
     </ActionForm>

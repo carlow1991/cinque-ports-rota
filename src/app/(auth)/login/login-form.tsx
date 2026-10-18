@@ -1,6 +1,7 @@
 "use client";
 
-import { useActionState, useEffect, useRef } from "react";
+import { Suspense, useActionState, useEffect, useRef } from "react";
+import { useSearchParams } from "next/navigation";
 import { useHydrated } from "@/lib/use-hydrated";
 import { loginAction } from "./actions";
 import type { LoginState } from "./schema";
@@ -20,6 +21,7 @@ export function LoginForm() {
     return (
       <form action={formAction} className="space-y-4" noValidate>
         <input type="hidden" name="intent" value="verify" />
+        {state.next ? <input type="hidden" name="next" value={state.next} /> : null}
         <p role="status" className="rounded-lg bg-surface-muted p-3 text-sm text-ink">
           {state.notice}
         </p>
@@ -67,6 +69,7 @@ export function LoginForm() {
   return (
     <form action={formAction} className="space-y-4" noValidate>
       <input type="hidden" name="intent" value="request" />
+      <Suspense fallback={null}><NextField /></Suspense>
       <div className="space-y-1">
         <label htmlFor="email" className="block text-sm font-semibold">
           Email address
@@ -104,4 +107,11 @@ export function LoginForm() {
       </button>
     </form>
   );
+}
+
+/** Carries ?next= (the page they asked for) into the form. Read on the client so the rest of the
+ *  form stays static and works before JavaScript loads; the server validates it before use. */
+function NextField() {
+  const next = useSearchParams().get("next");
+  return next ? <input type="hidden" name="next" value={next.slice(0, 300)} /> : null;
 }
