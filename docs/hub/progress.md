@@ -17,3 +17,12 @@ See `stage-0-audit.md`.
 **Retired** old volunteer and organiser URLs redirect to Hub equivalents unless `LEGACY_ROTA_UI=true`.
 **Tests** `npm test` 454 passed (incl. `tests/db/hub-people.db.test.ts` 25: C01, C02, C03, C04, C05 part, H06, H07, C51 part, rollback); `tests/e2e/hub-stage1.mts` 22/22.
 **Decided** Only administrators create/edit people and send invitations; coordinators see the directory with contacts. Under-18s can't be invited in V1. An invite within 2 minutes of a successful one isn't re-sent.
+
+## Stage 2 — Unified calendar and minimal Create Event ✅
+**Migration** `20261019000200_hub_calendar.sql` (rollback tested; it refuses to run while events rely on the new freedoms rather than delete data).
+- `events` extended in place (ids kept): optional venue **or** free-text outside/away location; finish time optional (kick-off only); `category`, `volunteers_enabled` (default off), `visibility`, organiser, cancel reason.
+- Freemens Way set **inactive**: kept, its events viewable and editable in place, refused for new events.
+- `hub_create_event` / `hub_update_event` (reports a material date/time/place change) / `hub_set_event_status` (publish, unpublish, cancel with reason, complete). Nothing sends; publishing only controls visibility.
+**Screens** `/calendar` (agenda grouped by day and place, filters, “help wanted” vs “for information”), `/calendar/[id]`, `/manage/events`, `/manage/events/new` (5 fields + one switch, “More options”), `/manage/events/[id]` (edit, publish, cancel, copy to a date as a new draft). The template-driven builder and shift editor are gone from these routes.
+**Tests** `tests/db/hub-calendar.db.test.ts` (C08–C12, C14 history, scope, C51 part, rollback), `tests/unit/hub-calendar.test.ts` (C12 labels, H15 DST, H13 copy), `tests/e2e/hub-stage2.mts` 18/18.
+**Decided** Copies keep UK wall-clock times (09:00 stays 09:00 across a clock change). The autumn repeated hour uses the first (BST) occurrence. Coordinators can add events at their venues or for their teams.

@@ -23,6 +23,8 @@ export const HUB_SIGNED_IN_FUNCTIONS = [
   "link_person_account", "hub_me", "hub_create_person", "hub_update_person", "hub_set_preferences", "hub_update_my_profile",
   "hub_create_team", "hub_set_team_role", "hub_prepare_portal_invite", "hub_record_invite_result", "hub_set_access",
   "hub_set_coordinator_scopes", "hub_directory",
+  // Stage 2
+  "hub_can_manage_event", "hub_create_event", "hub_update_event", "hub_set_event_status",
 ];
 
 export const SIGNED_IN_FUNCTIONS = [...new Set([...LEGACY_SIGNED_IN_FUNCTIONS, ...HUB_SIGNED_IN_FUNCTIONS])].sort();

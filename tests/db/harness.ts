@@ -43,8 +43,9 @@ export type TestDb = {
 /**
  * `pauseBefore`: stop before the first migration whose filename sorts >= this prefix, run `atPause`
  * (e.g. insert legacy rows), then apply the rest. Used to test data-preserving migrations.
+ * `stopBefore`: apply only the migrations that sort before this prefix (used to test rollback scripts).
  */
-export async function createTestDb(opts: { pauseBefore?: string; atPause?: (admin: Client) => Promise<void> } = {}): Promise<TestDb> {
+export async function createTestDb(opts: { pauseBefore?: string; atPause?: (admin: Client) => Promise<void>; stopBefore?: string } = {}): Promise<TestDb> {
   const name = `rota_test_${randomBytes(6).toString("hex")}`;
   const root = new Client({ connectionString: ADMIN_URL });
   await root.connect();
@@ -56,6 +57,7 @@ export async function createTestDb(opts: { pauseBefore?: string; atPause?: (admi
   await admin.query(readFileSync(SHIM, "utf8"));
   let paused = false;
   for (const file of readdirSync(MIGRATIONS).filter((f) => f.endsWith(".sql")).sort()) {
+    if (opts.stopBefore && file >= opts.stopBefore) break;
     if (!paused && opts.pauseBefore && file >= opts.pauseBefore) {
       paused = true;
       await opts.atPause?.(admin);

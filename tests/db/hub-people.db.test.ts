@@ -265,7 +265,7 @@ describe("phone normalisation parity with the app", () => {
 describe("rollback script for Stage 1", () => {
   it("applies cleanly and leaves the legacy schema working", async () => {
     const { readFileSync } = await import("node:fs");
-    const scratch = await createTestDb({ pauseBefore: "20261019000200" });
+    const scratch = await createTestDb({ stopBefore: "20261019000200" });
     try {
       await scratch.admin.query("begin");
       await scratch.admin.query(readFileSync("docs/sql/rollback-20261019000100.sql", "utf8"));

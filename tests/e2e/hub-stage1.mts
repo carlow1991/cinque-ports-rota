@@ -54,7 +54,7 @@ await admin.getByRole("button", { name: "Send portal invitation" }).click();
 await admin.getByText(/Invitation emailed to kelly@test.local/).waitFor({ timeout: 15_000 }).catch(() => {});
 const [acc] = await q<{ invite_state: string }>("select invite_state from user_accounts where person_id = $1", [kelly.id]);
 check("explicit invite sent once and recorded", acc?.invite_state === "sent", acc?.invite_state);
-const audits = await q<{ action: string }>("select action from audit_log where entity_id = $1 and action like 'portal_invite%'", [kelly.id]);
+const audits = await q<{ action: string }>("select action from audit_log where entity_id = $1 and action like 'portal_invite%' order by id", [kelly.id]);
 check("…and audited", audits.map((a) => a.action).join(",") === "portal_invite_prepared,portal_invite_sent", audits.map((a) => a.action).join(","));
 check("admin pages fit a 375px phone", await noHorizontalScroll(admin));
 
