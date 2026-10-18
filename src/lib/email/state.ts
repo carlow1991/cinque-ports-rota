@@ -8,6 +8,7 @@ import { emailConfig } from "./worker";
 export type MessagingState =
   | "off"            // EMAIL_SENDING_ENABLED is not "true": messages are queued, nothing is sent
   | "misconfigured"  // switched on but a required setting is missing: nothing is sent
+  | "paused"         // hosting switch on, but an administrator hasn't started (or has paused) email in Settings
   | "limited"        // on, but APP_ENV is not production: only allow-listed addresses get mail
   | "on";            // on in production: volunteers receive their emails
 
@@ -26,16 +27,20 @@ export function notifyOutcome(state: MessagingState, who: string, plural = false
   switch (state) {
     case "on": return `An email to ${who} is on its way.`;
     case "limited": return `An email to ${who} is queued. In pilot mode only approved addresses receive email, so tell them yourself if needed.`;
-    default: return `Email is switched off, so ${who} ${plural ? "have" : "has"} not been emailed. Tell them yourself.`;
+    default: return `${WHY_NOT[state]}, so ${who} ${plural ? "have" : "has"} not been emailed. Tell them yourself.`;
   }
 }
+
+const WHY_NOT: Record<"off" | "misconfigured" | "paused", string> = {
+  off: "Email is switched off", misconfigured: "Email isn't set up correctly", paused: "Email is paused",
+};
 
 /** Clause for confirm prompts describing what WILL happen to people. */
 export function notifyFuture(state: MessagingState, who: string): string {
   const object = who === "they" ? "them" : who; // "an email to them", never "to they"
   return state === "on" ? `${who} will be emailed`
     : state === "limited" ? `an email to ${object} will be queued (pilot mode: approved addresses only)`
-    : `${who} will not be emailed while email is off, so tell them yourself`;
+    : `${who} will not be emailed while email is ${state === "paused" ? "paused" : "off"}, so tell them yourself`;
 }
 
 export const capitalise = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);

@@ -11,6 +11,9 @@ beforeAll(async () => {
   mw = await venueId(db, "marke_wood");
   admin = await person(db, "admin");
   coord = await makeCoordinator(db, [mw]);
+  // These worker tests assume email has been started (increment 6 release switch); the gate itself
+  // is tested in its own block below.
+  await db.admin.query("update club_settings set email_released_from = '-infinity' where id = 1");
 });
 afterAll(async () => db?.drop());
 
@@ -206,5 +209,99 @@ describe("day-before reminders (UK time)", () => {
     expect(await enqueue(new Date("2031-02-07T09:00:00Z"))).toBe(0);
     await db.admin.query("update club_settings set reminder_day_before = true");
     expect(await reminders(a)).toHaveLength(0);
+  });
+});
+
+describe("release switch (nothing goes until an administrator starts email)", () => {
+  const setRelease = (v: string | null) => db.admin.query("update club_settings set email_released_from = $1 where id = 1", [v]);
+  const pendingFor = async (a: string) => (await rows<{ id: string; status: string; error: string | null }>(db.admin,
+    "select id, status, error from notification_outbox where entity_id = $1 order by created_at", [a]));
+
+  it("while held, the worker hands out nothing and queues no reminders, even though messages are waiting", async () => {
+    await drain();
+    await setRelease(null);
+    const { a } = await signUpFor(700);
+    expect((await pendingFor(a))[0].status).toBe("pending");
+    expect(await claim(10)).toEqual([]);
+    expect(await db.asService(async (c) => (await c.query("select public.outbox_enqueue_reminders() as n")).rows[0].n)).toBe(0);
+  });
+
+  it("only an admin can start or pause; the backlog preview has counts only, no addresses", async () => {
+    await setRelease(null);
+    await expectCode(rpc(db, coord, "admin_set_email_release", ["new_only"]), "not_authorised");
+    expect(await db.asUser(coord.uid, (c) => rows(c, "select * from public.admin_email_backlog()"))).toEqual([]);
+    const b = await db.asUser(admin.uid, (c) => rows<{ kind: string; held: number; still_current: number }>(c, "select * from public.admin_email_backlog()"));
+    expect(b.find((x) => x.kind === "signup_confirmed")!.held).toBeGreaterThan(0);
+    expect(JSON.stringify(b)).not.toMatch(/@/);
+  });
+
+  it("'new emails only' holds back the old queue for good; new messages after it go", async () => {
+    await drain();
+    await setRelease(null);
+    const old = await signUpFor(710);
+    await rpc(db, admin, "admin_set_email_release", ["new_only"]);
+    expect((await pendingFor(old.a))[0]).toMatchObject({ status: "suppressed", error: "held_before_release" });
+    const fresh = await signUpFor(720);
+    const got = await claim(10);
+    expect(got.map((x) => x.payload.assignment_id)).toEqual([fresh.a]);
+    for (const g of got) await complete(g.id, true);
+  });
+
+  it("'include still-current' sends queued messages that are still true and drops out-of-date ones", async () => {
+    await drain();
+    await setRelease(null);
+    const keep = await signUpFor(730);
+    const gone = await signUpFor(740);
+    await rpc(db, gone.v, "withdraw_assignment", [gone.a]);              // its 'confirmed' email is now out of date
+    const r = await rpc<{ suppressed_out_of_date: number }>(db, admin, "admin_set_email_release", ["include_current"]);
+    expect(r.suppressed_out_of_date).toBeGreaterThanOrEqual(1);
+    const got = await claim(10);
+    const kinds = got.map((x) => `${x.kind}:${x.payload.assignment_id}`).sort();
+    expect(kinds).toEqual([`signup_confirmed:${keep.a}`, `withdrawal_confirmed:${gone.a}`].sort());
+    for (const g of got) await complete(g.id, true);
+  });
+
+  it("pause stops sending again; turning the hosting switch on alone never releases anything", async () => {
+    await rpc(db, admin, "admin_set_email_release", ["pause"]);
+    await signUpFor(750);
+    expect(await claim(10)).toEqual([]);
+    await setRelease("-infinity"); // restore for any later tests
+  });
+});
+
+describe("re-checked just before sending (current state)", () => {
+  it("an invitation that was declined, or superseded by a newer message, is not sent", async () => {
+    await drain();
+    const v = await person(db);
+    const e = await makeEvent(db, { venue: mw, start: inHours(800), end: inHours(802) });
+    const s1 = await makeShift(db, { event: e, duty: "cleaning", start: inHours(800), end: inHours(802) });
+    const s2 = await makeShift(db, { event: e, duty: "refreshments", start: inHours(800), end: inHours(802) });
+    const i1 = await rpc<{ assignment_id: string }>(db, coord, "allocate_volunteer", [s1, v.id]);
+    await rpc(db, v, "decline_invitation", [i1.assignment_id]);            // invitation now out of date
+    const i2 = await rpc<{ assignment_id: string }>(db, coord, "allocate_volunteer", [s2, v.id]);
+    await rpc(db, v, "accept_invitation", [i2.assignment_id]);             // invitation superseded by 'accepted'
+    const got = await claim(20);
+    const sent = got.filter((x) => x.payload.assignment_id === i1.assignment_id || x.payload.assignment_id === i2.assignment_id).map((x) => x.kind).sort();
+    expect(sent).not.toContain("duty_invitation");
+    expect(sent).toContain("invitation_accepted");
+    const why = await rows<{ error: string }>(db.admin, "select error from notification_outbox where kind = 'duty_invitation' and entity_id in ($1, $2)", [i1.assignment_id, i2.assignment_id]);
+    expect(why).toHaveLength(2);
+    expect(why.every((x) => ["status_changed", "superseded"].includes(x.error))).toBe(true);
+    for (const g of got) await complete(g.id, true);
+  });
+
+  it("a cancellation-request alert to organisers is dropped once the request is resolved", async () => {
+    await drain();
+    const v = await person(db);
+    const e = await makeEvent(db, { venue: mw, start: inHours(6), end: inHours(8) });
+    const s = await makeShift(db, { event: e, duty: "cleaning", start: inHours(6), end: inHours(8) });
+    const a = await rpc<{ assignment_id: string }>(db, v, "self_signup", [s]);
+    const req = await rpc<{ request_id: string }>(db, v, "request_cancellation", [a.assignment_id, "Away"]);
+    await rpc(db, coord, "resolve_cancellation_request", [req.request_id, false]);
+    const got = await claim(20);
+    expect(got.some((x) => x.kind === "cancellation_requested")).toBe(false);
+    const [r] = await rows<{ error: string }>(db.admin, "select error from notification_outbox where kind = 'cancellation_requested' and entity_id = $1 limit 1", [req.request_id]);
+    expect(r.error).toBe("request_resolved");
+    for (const g of got) await complete(g.id, true);
   });
 });

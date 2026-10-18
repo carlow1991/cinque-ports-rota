@@ -1,11 +1,13 @@
 "use server";
 
 import { refresh } from "next/cache";
+import { redirect } from "next/navigation";
 import { z } from "zod";
 import { requireRole } from "@/lib/auth/dal";
 import { createClient } from "@/lib/supabase/server";
 import { fail, firstIssue, friendlyError, type ActionResult } from "@/lib/actions/result";
 import { kickOutbox } from "@/lib/email/server";
+import { messagingState } from "@/lib/email/state";
 
 /** Admin-only reference data. RLS independently restricts every write to admins. */
 const ADMIN = ["admin"] as const;
@@ -92,4 +94,27 @@ export async function retryFailedEmailsAction(_p: ActionResult | null): Promise<
   kickOutbox();
   const n = Number(data ?? 0);
   return { ok: true, message: n === 0 ? "There were no failed emails to retry." : `${n} email${n === 1 ? "" : "s"} queued to try again.` };
+}
+
+/**
+ * Start or pause email (the database release switch). Starting is only allowed once the hosting
+ * switch is on and configured, so messages can't pile up and then all go later.
+ */
+export async function setEmailReleaseAction(_p: ActionResult | null, fd: FormData): Promise<ActionResult> {
+  await requireRole(ADMIN);
+  const mode = z.enum(["new_only", "include_current", "pause"]).safeParse(fd.get("mode"));
+  if (!mode.success) return fail("Choose an option.");
+  const env = messagingState();
+  if (mode.data !== "pause" && env !== "on" && env !== "limited") {
+    return fail("Switch on email sending in the hosting settings first (and check it is set up). Starting here before then would let messages pile up and all go later.");
+  }
+  const sb = await createClient();
+  const { data, error } = await sb.rpc("admin_set_email_release", { p_mode: mode.data });
+  if (error) return fail(friendlyError(error));
+  refresh();
+  if (mode.data !== "pause") kickOutbox();
+  // The start/pause form is replaced by the other one after saving, so report on the page itself.
+  const d = (data ?? {}) as { suppressed_out_of_date?: number; held_back?: number };
+  redirect(mode.data === "pause" ? "/manage/settings?email=paused#email"
+    : `/manage/settings?email=started&held=${d.held_back ?? 0}&dropped=${d.suppressed_out_of_date ?? 0}#email`);
 }

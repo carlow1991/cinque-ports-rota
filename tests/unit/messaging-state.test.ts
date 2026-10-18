@@ -32,6 +32,10 @@ describe("wording never claims delivery that did not happen", () => {
     expect(notifyOutcome("limited", "the volunteer")).toMatch(/queued/);
     expect(notifyOutcome("limited", "the volunteer")).not.toMatch(/sent|on its way/);
   });
+  it("paused (hosting on, not started in Settings) never claims an email was sent", () => {
+    expect(notifyOutcome("paused", "the volunteer")).toBe("Email is paused, so the volunteer has not been emailed. Tell them yourself.");
+    expect(notifyFuture("paused", "they")).toBe("they will not be emailed while email is paused, so tell them yourself");
+  });
   it("uses 'them' after 'to' (never 'an email to they')", () => {
     expect(notifyFuture("limited", "they")).toBe("an email to them will be queued (pilot mode: approved addresses only)");
     expect(notifyFuture("off", "they")).toBe("they will not be emailed while email is off, so tell them yourself");

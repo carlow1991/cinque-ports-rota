@@ -82,6 +82,8 @@ begin
   values (mw, 'SYN Next fixture', 'fixture', (('${NEXT_DAY}'::date + time '14:00') at time zone 'Europe/London'),
           (('${NEXT_DAY}'::date + time '16:00') at time zone 'Europe/London'), 'published', false);
 end $$;`);
+// Increment 6: email is held in a fresh database; this test checks the pilot-mode wording, so start it.
+await q("update club_settings set email_released_from = now() where id = 1");
 const atRiskEvent = (await q<{ id: string }>("select id from events where title = 'SYN Lead asked to cancel'"))[0].id;
 const supportShift = (await q<{ id: string }>(
   "select s.id from event_shifts s join duty_types d on d.id = s.duty_type_id where s.event_id = $1 and d.code = 'general_support'", [atRiskEvent]))[0].id;

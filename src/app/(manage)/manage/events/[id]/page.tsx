@@ -12,7 +12,8 @@ import { loadCoverageEvents, loadEvent, loadEventPeople, loadLinkedEvents, loadR
 import { ShiftPeople } from "./shift-people";
 import { COVER_EXPLANATION, parseRanges } from "@/lib/domain/coverage";
 import { describeOffset } from "@/lib/domain/templates";
-import { capitalise, messagingState, notifyFuture, notifyOutcome } from "@/lib/email/state";
+import { capitalise, notifyFuture, notifyOutcome, type MessagingState } from "@/lib/email/state";
+import { loadMessagingState } from "@/lib/email/state-server";
 import { formatDay, formatLongDay, formatRange, formatTime, londonParts, londonWindow, zoneLabel } from "@/lib/time/london";
 import {
   addShiftAction, applyTemplateAction, cancelEventAction, cancelShiftAction, completeEventAction, linkCoverAction,
@@ -54,7 +55,7 @@ async function EventDetail({ params, searchParams }: { params: PageProps<"/manag
     loadEventPeople(e.id),
   ]);
   const ended = new Date(e.ends_at).getTime() <= people.now;
-  const mail = messagingState();
+  const mail = await loadMessagingState();
   // What happened to email at the time is not recorded per event, so say what is true now.
   const MAIL_NOTE = mail === "on" ? "They were emailed." : "Email may not have reached them (email is off or limited to approved addresses), so check they know.";
   const venue = venues.find((v) => v.id === e.venue_id);
@@ -225,7 +226,7 @@ async function EventDetail({ params, searchParams }: { params: PageProps<"/manag
         <ul className="space-y-2">
           {shifts.map((s) => (
             <ShiftRow key={s.id} s={s} open={open} people={people.rows.filter((r) => r.shift_id === s.id)}
-              started={new Date(s.starts_at).getTime() <= people.now} />
+              started={new Date(s.starts_at).getTime() <= people.now} mail={mail} />
           ))}
         </ul>
       </Card>
@@ -410,7 +411,7 @@ async function EventDetail({ params, searchParams }: { params: PageProps<"/manag
   );
 }
 
-function ShiftRow({ s, open, people, started }: { s: ShiftView; open: boolean; people: RosterRow[]; started: boolean }) {
+function ShiftRow({ s, open, people, started, mail }: { s: ShiftView; open: boolean; people: RosterRow[]; started: boolean; mail: MessagingState }) {
   const st = new Date(s.starts_at);
   const en = new Date(s.ends_at);
   const p0 = londonParts(st);
@@ -452,10 +453,10 @@ function ShiftRow({ s, open, people, started }: { s: ShiftView; open: boolean; p
             <Field label="Instructions"><Textarea name="instructions" defaultValue={s.instructions ?? ""} maxLength={2000} /></Field>
           </ActionForm>
           <ActionForm action={cancelShiftAction} submitLabel="Remove this duty" variant="danger" className="mt-3 space-y-2"
-            confirm={`Remove this duty? ${capitalise(notifyFuture(messagingState(), "anyone on it"))}.`}>
+            confirm={`Remove this duty? ${capitalise(notifyFuture(mail, "anyone on it"))}.`}>
             <input type="hidden" name="shift_id" value={s.id} />
             <p className="text-sm">
-              {onDuty ? <>{onDuty} {onDuty === 1 ? "person is" : "people are"} on this duty and will be taken off. {capitalise(notifyFuture(messagingState(), "they"))}.</> : "Nobody is on this duty yet."}
+              {onDuty ? <>{onDuty} {onDuty === 1 ? "person is" : "people are"} on this duty and will be taken off. {capitalise(notifyFuture(mail, "they"))}.</> : "Nobody is on this duty yet."}
             </p>
             <Field label="Reason (anyone on the duty will see it)"><Input name="reason" required maxLength={500} /></Field>
           </ActionForm>

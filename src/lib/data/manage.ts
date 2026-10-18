@@ -347,3 +347,21 @@ export async function loadOutboxSummary(): Promise<OutboxSummaryRow[]> {
   if (r.error) throw new Error("Could not load the email summary.");
   return (r.data ?? []) as OutboxSummaryRow[];
 }
+
+export type EmailBacklogRow = { kind: string; held: number; still_current: number; out_of_date: number; recipients: number; oldest: string | null };
+
+/** Admin only: messages being held back, how many are still true, and how many people they'd reach. */
+export async function loadEmailBacklog(): Promise<EmailBacklogRow[]> {
+  const sb = await createClient();
+  const r = await sb.rpc("admin_email_backlog");
+  if (r.error) throw new Error("Could not load the held emails.");
+  return (r.data ?? []) as EmailBacklogRow[];
+}
+
+/** When email was started in Settings (null = held: nothing is sent). */
+export async function loadEmailRelease(): Promise<{ releasedFrom: string | null }> {
+  const sb = await createClient();
+  const r = await sb.from("club_settings").select("email_released_from").maybeSingle();
+  if (r.error) throw new Error("Could not load the email setting.");
+  return { releasedFrom: (r.data as { email_released_from: string | null } | null)?.email_released_from ?? null };
+}

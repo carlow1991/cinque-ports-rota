@@ -2,7 +2,8 @@
 
 import { refresh } from "next/cache";
 import { kickOutbox } from "@/lib/email/server";
-import { messagingState, notifyOutcome } from "@/lib/email/state";
+import { notifyOutcome } from "@/lib/email/state";
+import { loadMessagingState } from "@/lib/email/state-server";
 import { redirect } from "next/navigation";
 import { z } from "zod";
 import { MANAGER_ROLES } from "@/lib/auth/access";
@@ -212,6 +213,7 @@ export async function updateShiftAction(_prev: ActionResult | null, fd: FormData
 }
 
 export async function cancelShiftAction(_prev: ActionResult | null, fd: FormData): Promise<ActionResult> {
+  const MAIL = await loadMessagingState();
   await requireRole(MANAGER_ROLES);
   const id = uuid.safeParse(fd.get("shift_id"));
   const reason = String(fd.get("reason") ?? "").trim();
@@ -222,7 +224,7 @@ export async function cancelShiftAction(_prev: ActionResult | null, fd: FormData
   if (error) return fail(friendlyError(error));
   refresh();
   kickOutbox();
-  return { ok: true, message: `Duty removed. ${notifyOutcome(messagingState(), "anyone who was on it", true)}` };
+  return { ok: true, message: `Duty removed. ${notifyOutcome(MAIL, "anyone who was on it", true)}` };
 }
 
 // ---------------------------------------------------------------------------
@@ -291,39 +293,44 @@ async function rpcAction(fn: string, args: Record<string, unknown>, message: str
 const reasonOf = (fd: FormData) => String(fd.get("reason") ?? "").trim().slice(0, 500);
 
 export async function allocateAction(_p: ActionResult | null, fd: FormData): Promise<ActionResult> {
+  const MAIL = await loadMessagingState();
   const s = uuid.safeParse(fd.get("shift_id"));
   const v = uuid.safeParse(fd.get("volunteer_id"));
   if (!s.success || !v.success) return fail("Choose a volunteer.");
   return rpcAction("allocate_volunteer", { p_shift_id: s.data, p_volunteer_id: v.data },
-    `Invited. It counts only once they accept. ${notifyOutcome(messagingState(), "the volunteer")}`);
+    `Invited. It counts only once they accept. ${notifyOutcome(MAIL, "the volunteer")}`);
 }
 
 export async function approveAction(_p: ActionResult | null, fd: FormData): Promise<ActionResult> {
+  const MAIL = await loadMessagingState();
   const a = uuid.safeParse(fd.get("assignment_id"));
   if (!a.success) return fail("Not found.");
-  return rpcAction("approve_assignment", { p_assignment_id: a.data }, `Approved. They're confirmed. ${notifyOutcome(messagingState(), "the volunteer")}`);
+  return rpcAction("approve_assignment", { p_assignment_id: a.data }, `Approved. They're confirmed. ${notifyOutcome(MAIL, "the volunteer")}`);
 }
 
 export async function rejectAction(_p: ActionResult | null, fd: FormData): Promise<ActionResult> {
+  const MAIL = await loadMessagingState();
   const a = uuid.safeParse(fd.get("assignment_id"));
   if (!a.success) return fail("Not found.");
-  return rpcAction("reject_assignment", { p_assignment_id: a.data, p_reason: reasonOf(fd) || null }, `Declined. The place is free again. ${notifyOutcome(messagingState(), "the volunteer")}`);
+  return rpcAction("reject_assignment", { p_assignment_id: a.data, p_reason: reasonOf(fd) || null }, `Declined. The place is free again. ${notifyOutcome(MAIL, "the volunteer")}`);
 }
 
 export async function removeAction(_p: ActionResult | null, fd: FormData): Promise<ActionResult> {
+  const MAIL = await loadMessagingState();
   const a = uuid.safeParse(fd.get("assignment_id"));
   if (!a.success) return fail("Not found.");
   const reason = reasonOf(fd);
   if (!reason) return fail("Please give a reason. The volunteer will see it.");
-  return rpcAction("remove_assignment", { p_assignment_id: a.data, p_reason: reason }, `Removed. The place is open again. ${notifyOutcome(messagingState(), "the volunteer")}`);
+  return rpcAction("remove_assignment", { p_assignment_id: a.data, p_reason: reason }, `Removed. The place is open again. ${notifyOutcome(MAIL, "the volunteer")}`);
 }
 
 export async function resolveCancellationAction(_p: ActionResult | null, fd: FormData): Promise<ActionResult> {
+  const MAIL = await loadMessagingState();
   const r = uuid.safeParse(fd.get("request_id"));
   if (!r.success) return fail("Not found.");
   const approve = fd.get("decision") === "approve";
   return rpcAction("resolve_cancellation_request", { p_request_id: r.data, p_approve: approve },
-    `${approve ? "Cancellation accepted. The place is open again." : "Cancellation declined. They're still on the duty."} ${notifyOutcome(messagingState(), "the volunteer")}`);
+    `${approve ? "Cancellation accepted. The place is open again." : "Cancellation declined. They're still on the duty."} ${notifyOutcome(MAIL, "the volunteer")}`);
 }
 
 export async function attendanceAction(_p: ActionResult | null, fd: FormData): Promise<ActionResult> {
@@ -334,19 +341,21 @@ export async function attendanceAction(_p: ActionResult | null, fd: FormData): P
 }
 
 export async function postponeAction(_p: ActionResult | null, fd: FormData): Promise<ActionResult> {
+  const MAIL = await loadMessagingState();
   const e = uuid.safeParse(fd.get("event_id"));
   if (!e.success) return fail("Event not found.");
   if (!reasonOf(fd)) return fail("Please give a reason. Volunteers will see it.");
   return rpcAction("postpone_event", { p_event_id: e.data, p_reason: reasonOf(fd) }, (d) =>
-    `Postponed. ${d.assignments_reset ?? 0} volunteer(s) need to reconfirm. ${notifyOutcome(messagingState(), "them", true)} Set the new date, then publish again.`);
+    `Postponed. ${d.assignments_reset ?? 0} volunteer(s) need to reconfirm. ${notifyOutcome(MAIL, "them", true)} Set the new date, then publish again.`);
 }
 
 export async function cancelEventAction(_p: ActionResult | null, fd: FormData): Promise<ActionResult> {
+  const MAIL = await loadMessagingState();
   const e = uuid.safeParse(fd.get("event_id"));
   if (!e.success) return fail("Event not found.");
   if (!reasonOf(fd)) return fail("Please give a reason. Volunteers will see it.");
   return rpcAction("cancel_event", { p_event_id: e.data, p_reason: reasonOf(fd) }, (d) =>
-    `Cancelled. ${d.assignments_cancelled ?? 0} volunteer(s) taken off; reminders stopped. ${notifyOutcome(messagingState(), "them", true)}`);
+    `Cancelled. ${d.assignments_cancelled ?? 0} volunteer(s) taken off; reminders stopped. ${notifyOutcome(MAIL, "them", true)}`);
 }
 
 export async function completeEventAction(_p: ActionResult | null, fd: FormData): Promise<ActionResult> {

@@ -74,6 +74,22 @@ check("header: Permissions-Policy blocks camera/mic/location", /camera=\(\).*mic
 check("header: no X-Powered-By", !h.has("x-powered-by"));
 
 // ---------------------------------------------------------------------------------------------
+// 1b. Increment 6: with the hosting switch on, nothing is sent until an admin starts email here.
+// ---------------------------------------------------------------------------------------------
+{
+  const early = await phone("admin@test.local");
+  early.page.on("dialog", (d) => d.accept());
+  await early.page.goto(`${APP}/manage/settings`);
+  await early.page.getByRole("heading", { name: "Email", exact: true }).waitFor();
+  const before = ((await early.page.textContent("main")) ?? "").replace(/\s+/g, " ");
+  check("email is held until started in Settings, even with the hosting switch on", /Started here\s*No: held/.test(before) && before.includes("nothing is sent yet"));
+  await early.page.getByRole("button", { name: "Start: new emails only (recommended)" }).click();
+  await early.page.getByText("Email started.").waitFor();
+  check("admin starts email (new emails only)", (await q<{ r: string | null }>("select email_released_from::text as r from club_settings where id = 1"))[0].r !== null);
+  await early.ctx.close();
+}
+
+// ---------------------------------------------------------------------------------------------
 // 2. A volunteer signs up: the confirmation email goes out at once, once, with only their duty.
 // ---------------------------------------------------------------------------------------------
 const vol = await phone("vol@test.local");
@@ -95,11 +111,14 @@ const sent1 = (await waitFor(() => row("kind = 'signup_confirmed' and status = '
 check("outbox row marked sent with the provider's message id", Boolean(sent1?.provider_message_id), sent1?.status);
 
 // 3. Crash after sending but before recording: the retry must not deliver a second copy.
-const before = (await mail()).sent.length;
+// Count only this confirmation: the same cron run may legitimately send other mail (e.g. a reminder
+// queued for the first time now that email has been started).
+const confirmations = (m: Mail[]) => m.filter((x) => x.subject.startsWith("You're confirmed") && x.to[0] === "vol@test.local").length;
+const before = confirmations((await mail()).sent);
 await q("update notification_outbox set status = 'pending', sent_at = null where id = $1", [sent1.id]);
 await cron();
 const after = await mail();
-check("re-sent after a simulated crash: provider idempotency stops a duplicate", after.sent.length === before && after.repeats >= 1, `sent ${before}→${after.sent.length}, repeats ${after.repeats}`);
+check("re-sent after a simulated crash: provider idempotency stops a duplicate", confirmations(after.sent) === before && after.repeats >= 1, `confirmations ${before}→${confirmations(after.sent)}, repeats ${after.repeats}`);
 check("…and the row is sent again", (await row("id = $1", [sent1.id])).status === "sent");
 
 // ---------------------------------------------------------------------------------------------

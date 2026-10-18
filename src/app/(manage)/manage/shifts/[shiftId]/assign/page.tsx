@@ -8,7 +8,7 @@ import { Badge, Notice } from "@/components/ui";
 import { MANAGER_ROLES } from "@/lib/auth/access";
 import { requireRole } from "@/lib/auth/dal";
 import { loadPicker, loadRoster, loadShiftForAssign } from "@/lib/data/manage";
-import { messagingState } from "@/lib/email/state";
+import { loadMessagingState } from "@/lib/email/state-server";
 import { formatLongDay, formatRange } from "@/lib/time/london";
 import { allocateAction } from "../../../events/actions";
 
@@ -52,7 +52,7 @@ async function Assign({ params, searchParams }: { params: PageProps<"/manage/shi
 
       {closed ? <Notice tone="warn" title="Not open for invitations">Publish the event first. Invitations can&apos;t be sent for drafts or cancelled duties.</Notice> : null}
       <Notice tone="info">An invitation does not fill the place: it counts as cover only when the volunteer accepts (and, if the duty needs approval, once you approve it).</Notice>
-      <p className="text-sm text-ink-muted">{INVITE_EMAIL[messagingState()]}</p>
+      <p className="text-sm text-ink-muted">{INVITE_EMAIL[await loadMessagingState()]}</p>
 
       <form action={`/manage/shifts/${shiftId}/assign`} className="flex gap-2">
         <label className="sr-only" htmlFor="q">Search by name</label>
@@ -96,4 +96,5 @@ const INVITE_EMAIL = {
   limited: "Invitation emails are queued, but in pilot mode only approved addresses receive them. Everyone sees their invitation under My Duties, so tell them to look.",
   off: "Email is switched off, so nobody is emailed. People see their invitation under My Duties, so tell them to look.",
   misconfigured: "Email is not set up correctly, so nobody is emailed. People see their invitation under My Duties, so tell them to look.",
+  paused: "Email is paused, so nobody is emailed. People see their invitation under My Duties, so tell them to look.",
 } as const;
