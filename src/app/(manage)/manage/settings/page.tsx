@@ -124,6 +124,13 @@ function EmailCard({ rows }: { rows: OutboxSummaryRow[] }) {
   return (
     <Card title="Email">
       <Notice tone={mode.tone}>{mode.text}</Notice>
+      {(!cfg.enabled || cfg.problems.length > 0) && (totals.get("pending") ?? 0) > 0 ? (
+        <Notice tone="warn" title="Queued emails are waiting">
+          {totals.get("pending")} email{totals.get("pending") === 1 ? " is" : "s are"} queued from while sending was off. As things stand,
+          switching sending on would send any of these about duties that haven&apos;t started yet, even if they are now out of date.
+          Talk to whoever manages the hosting before switching it on.
+        </Notice>
+      ) : null}
       <p className="mt-2 text-sm text-ink-muted">Demo events never send email. Each volunteer only ever receives details of their own duty.</p>
       {rows.length === 0 ? (
         <p className="mt-3">No emails in the last 30 days.</p>

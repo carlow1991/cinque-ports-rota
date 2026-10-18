@@ -135,6 +135,31 @@ describe("full-window site-lead coverage (agreed Q5: earliest setup → end of c
     expect((await coverage(youth)).state).toBe("covered_by_volunteer");
   });
 
+  it("a lead's pending late cancellation request → at risk with the exact gap; declining restores cover", async () => {
+    const w = await saturdayOps(8);
+    const l = await lead();
+    const a = await rpc<{ assignment_id: string }>(db, l, "self_signup", [w.leadShift]);
+    expect((await coverage(w.youth)).state).toBe("covered_by_volunteer");
+    const req = await rpc<{ request_id: string }>(db, l, "request_cancellation", [a.assignment_id, "Away"]);
+    const c = await coverage(w.youth);
+    expect(c.state).toBe("at_risk");
+    // The whole required window (setup 08:15 → cleaning 12:30 in the §6 example) is now a gap.
+    const [win] = await rows<{ gap: string }>(db.admin, "select tstzmultirange($1::tstzrange)::text as gap", [c.required_window]);
+    expect(c.gaps).toBe(win.gap);
+    expect(await rows(db.admin, "select 1 from assignments where id = $1 and status = 'confirmed'", [a.assignment_id])).toHaveLength(1);
+    await rpc(db, coord, "resolve_cancellation_request", [req.request_id, false]);
+    expect((await coverage(w.youth)).state).toBe("covered_by_volunteer");
+  });
+
+  it("an approved late cancellation leaves the event at risk", async () => {
+    const w = await saturdayOps(9);
+    const l = await lead();
+    const a = await rpc<{ assignment_id: string }>(db, l, "self_signup", [w.leadShift]);
+    const req = await rpc<{ request_id: string }>(db, l, "request_cancellation", [a.assignment_id, "Away"]);
+    await rpc(db, coord, "resolve_cancellation_request", [req.request_id, true]);
+    expect((await coverage(w.youth)).state).toBe("at_risk");
+  });
+
   it("a confirmed lead whose authorisation lapses no longer counts", async () => {
     const w = await saturdayOps(1600);
     const l = await lead();

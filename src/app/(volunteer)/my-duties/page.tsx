@@ -134,7 +134,7 @@ function DutyItem({ d, now }: { d: MyDuty; now: number }) {
               <summary className="cursor-pointer text-sm font-semibold text-danger">Can&apos;t make it?</summary>
               <ActionForm action={requestCancellationAction} submitLabel="Ask to cancel" pendingLabel="Sending…" variant="danger" className="mt-2 space-y-2">
                 <input type="hidden" name="assignment_id" value={d.assignment_id} />
-                <p className="text-xs text-ink-muted">It&apos;s too close to the duty to withdraw online. An organiser will be told straight away and will reply. You stay on the duty until they do.</p>
+                <p className="text-xs text-ink-muted">It&apos;s too close to the duty to withdraw online. Your request goes straight to the organisers&apos; list of things to deal with. You stay on the duty until one of them replies.</p>
                 <label className="block text-sm">
                   <span className="font-semibold">Reason (optional)</span>
                   <textarea name="reason" maxLength={500} rows={2} className="mt-1 block w-full rounded-lg border border-line px-3 py-2" />

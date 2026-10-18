@@ -105,6 +105,19 @@ describe("event_cover_leads", () => {
     expect((await q())[0].authorised).toBe(false);
     expect(await db.asUser(coordMW.uid, (c) => rows(c, "select * from public.event_cover_leads($1)", [fixture]))).toEqual([]);
   });
+
+  it("flags a lead who has asked to cancel late (still confirmed)", async () => {
+    const lead = await person(db, "volunteer", { name: "Cara Cancel" });
+    for (const k of ["site_lead", "open_unlock", "lock_secure"]) await authorise(db, lead.id, k);
+    const fixture = await makeEvent(db, { venue: fw, start: inHours(6), end: inHours(8) });
+    const ls = await makeShift(db, { event: fixture, duty: "site_lead", start: inHours(6), end: inHours(8) });
+    const a = await rpc<{ assignment_id: string }>(db, lead, "self_signup", [ls]);
+    const q = async () => (await db.asUser(coordFW.uid, (c) => rows<{ status: string; cancellation_requested: boolean }>(c,
+      "select status, cancellation_requested from public.event_cover_leads($1)", [fixture])))[0];
+    expect(await q()).toEqual({ status: "confirmed", cancellation_requested: false });
+    await rpc(db, lead, "request_cancellation", [a.assignment_id, "Away"]);
+    expect(await q()).toEqual({ status: "confirmed", cancellation_requested: true });
+  });
 });
 
 describe("admin volunteer management", () => {

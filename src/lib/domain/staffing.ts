@@ -7,15 +7,23 @@ export type RosterLike = {
   shift_id: string; duty_code: string; duty_name: string; shift_starts_at: string; shift_ends_at: string;
   required_count: number; volunteer_id: string | null; display_name: string | null;
   status: "invited" | "pending_approval" | "confirmed" | null;
+  /** Set while a confirmed volunteer has a pending late cancellation request. */
+  cancellation_request_id?: string | null;
 };
 
 export type ShiftStaffing = {
   shift_id: string; event_id: string; event_title: string; venue_id: string; venue_name: string; team_name: string | null;
   duty_code: string; duty_name: string; starts_at: string; ends_at: string;
   required: number; confirmed: number; pending: number; invited: number; open: number;
+  /** Confirmed people who have asked to cancel late (still counted in `confirmed`). */
+  at_risk: number;
 };
 
-/** One entry per duty with exact counts. open = max(0, required − confirmed − pending). */
+/**
+ * One entry per duty with exact counts. open = max(0, required − confirmed − pending).
+ * at_risk counts confirmed people with a pending cancellation request: they stay confirmed until
+ * an organiser decides, so `open` does not change, but the place can no longer be relied on.
+ */
 export function staffingByShift(rows: RosterLike[]): ShiftStaffing[] {
   const map = new Map<string, ShiftStaffing>();
   for (const r of rows) {
@@ -24,11 +32,14 @@ export function staffingByShift(rows: RosterLike[]): ShiftStaffing[] {
       s = {
         shift_id: r.shift_id, event_id: r.event_id, event_title: r.event_title, venue_id: r.venue_id, venue_name: r.venue_name,
         team_name: r.team_name ?? null, duty_code: r.duty_code, duty_name: r.duty_name, starts_at: r.shift_starts_at,
-        ends_at: r.shift_ends_at, required: r.required_count, confirmed: 0, pending: 0, invited: 0, open: 0,
+        ends_at: r.shift_ends_at, required: r.required_count, confirmed: 0, pending: 0, invited: 0, open: 0, at_risk: 0,
       };
       map.set(r.shift_id, s);
     }
-    if (r.status === "confirmed") s.confirmed++;
+    if (r.status === "confirmed") {
+      s.confirmed++;
+      if (r.cancellation_request_id) s.at_risk++;
+    }
     else if (r.status === "pending_approval") s.pending++;
     else if (r.status === "invited") s.invited++;
   }

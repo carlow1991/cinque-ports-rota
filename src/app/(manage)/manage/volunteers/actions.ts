@@ -33,7 +33,7 @@ export async function inviteVolunteerAction(_p: ActionResult | null, fd: FormDat
   const r = data as { already_linked: boolean; existing: boolean };
   if (r.already_linked) return { ok: true, message: `${parsed.data.display_name} already has an account and can sign in now.` };
   if (!authInvitesEnabled()) {
-    return { ok: true, message: `${parsed.data.display_name} added. Invitation emails are switched off until the pilot is approved, so send it with scripts/invite-volunteer.mts.` };
+    return { ok: true, message: `${parsed.data.display_name} added. Invitation not sent — email disabled. They can't sign in until they get one: ask whoever manages the club's hosting to send it.` };
   }
   const sent = await sendAuthInvite(parsed.data.email);
   if (sent === "sent") return { ok: true, message: `Invitation emailed to ${parsed.data.email}.` };

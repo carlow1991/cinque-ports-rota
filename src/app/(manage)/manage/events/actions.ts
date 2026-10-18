@@ -2,6 +2,7 @@
 
 import { refresh } from "next/cache";
 import { kickOutbox } from "@/lib/email/server";
+import { messagingState, notifyOutcome } from "@/lib/email/state";
 import { redirect } from "next/navigation";
 import { z } from "zod";
 import { MANAGER_ROLES } from "@/lib/auth/access";
@@ -220,7 +221,7 @@ export async function cancelShiftAction(_prev: ActionResult | null, fd: FormData
   if (error) return fail(friendlyError(error));
   refresh();
   kickOutbox();
-  return { ok: true, message: "Duty removed. Anyone on it has been notified." };
+  return { ok: true, message: `Duty removed. ${notifyOutcome(messagingState(), "anyone who was on it", true)}` };
 }
 
 // ---------------------------------------------------------------------------
@@ -293,19 +294,19 @@ export async function allocateAction(_p: ActionResult | null, fd: FormData): Pro
   const v = uuid.safeParse(fd.get("volunteer_id"));
   if (!s.success || !v.success) return fail("Choose a volunteer.");
   return rpcAction("allocate_volunteer", { p_shift_id: s.data, p_volunteer_id: v.data },
-    "Invitation sent. It counts as cover only once they accept.");
+    `Invited. It counts only once they accept. ${notifyOutcome(messagingState(), "the volunteer")}`);
 }
 
 export async function approveAction(_p: ActionResult | null, fd: FormData): Promise<ActionResult> {
   const a = uuid.safeParse(fd.get("assignment_id"));
   if (!a.success) return fail("Not found.");
-  return rpcAction("approve_assignment", { p_assignment_id: a.data }, "Approved. They're confirmed and have been told.");
+  return rpcAction("approve_assignment", { p_assignment_id: a.data }, `Approved. They're confirmed. ${notifyOutcome(messagingState(), "the volunteer")}`);
 }
 
 export async function rejectAction(_p: ActionResult | null, fd: FormData): Promise<ActionResult> {
   const a = uuid.safeParse(fd.get("assignment_id"));
   if (!a.success) return fail("Not found.");
-  return rpcAction("reject_assignment", { p_assignment_id: a.data, p_reason: reasonOf(fd) || null }, "Declined. The place is free again.");
+  return rpcAction("reject_assignment", { p_assignment_id: a.data, p_reason: reasonOf(fd) || null }, `Declined. The place is free again. ${notifyOutcome(messagingState(), "the volunteer")}`);
 }
 
 export async function removeAction(_p: ActionResult | null, fd: FormData): Promise<ActionResult> {
@@ -313,7 +314,7 @@ export async function removeAction(_p: ActionResult | null, fd: FormData): Promi
   if (!a.success) return fail("Not found.");
   const reason = reasonOf(fd);
   if (!reason) return fail("Please give a reason. The volunteer will see it.");
-  return rpcAction("remove_assignment", { p_assignment_id: a.data, p_reason: reason }, "Removed. The place is open again.");
+  return rpcAction("remove_assignment", { p_assignment_id: a.data, p_reason: reason }, `Removed. The place is open again. ${notifyOutcome(messagingState(), "the volunteer")}`);
 }
 
 export async function resolveCancellationAction(_p: ActionResult | null, fd: FormData): Promise<ActionResult> {
@@ -321,7 +322,7 @@ export async function resolveCancellationAction(_p: ActionResult | null, fd: For
   if (!r.success) return fail("Not found.");
   const approve = fd.get("decision") === "approve";
   return rpcAction("resolve_cancellation_request", { p_request_id: r.data, p_approve: approve },
-    approve ? "Cancellation accepted. The place is open again." : "Cancellation declined. They're still on the duty.");
+    `${approve ? "Cancellation accepted. The place is open again." : "Cancellation declined. They're still on the duty."} ${notifyOutcome(messagingState(), "the volunteer")}`);
 }
 
 export async function attendanceAction(_p: ActionResult | null, fd: FormData): Promise<ActionResult> {
@@ -336,7 +337,7 @@ export async function postponeAction(_p: ActionResult | null, fd: FormData): Pro
   if (!e.success) return fail("Event not found.");
   if (!reasonOf(fd)) return fail("Please give a reason. Volunteers will see it.");
   return rpcAction("postpone_event", { p_event_id: e.data, p_reason: reasonOf(fd) }, (d) =>
-    `Postponed. ${d.assignments_reset ?? 0} volunteer(s) told and asked to reconfirm. Set the new date, then publish again.`);
+    `Postponed. ${d.assignments_reset ?? 0} volunteer(s) need to reconfirm. ${notifyOutcome(messagingState(), "them", true)} Set the new date, then publish again.`);
 }
 
 export async function cancelEventAction(_p: ActionResult | null, fd: FormData): Promise<ActionResult> {
@@ -344,7 +345,7 @@ export async function cancelEventAction(_p: ActionResult | null, fd: FormData): 
   if (!e.success) return fail("Event not found.");
   if (!reasonOf(fd)) return fail("Please give a reason. Volunteers will see it.");
   return rpcAction("cancel_event", { p_event_id: e.data, p_reason: reasonOf(fd) }, (d) =>
-    `Cancelled. ${d.assignments_cancelled ?? 0} volunteer(s) told; reminders stopped.`);
+    `Cancelled. ${d.assignments_cancelled ?? 0} volunteer(s) taken off; reminders stopped. ${notifyOutcome(messagingState(), "them", true)}`);
 }
 
 export async function completeEventAction(_p: ActionResult | null, fd: FormData): Promise<ActionResult> {

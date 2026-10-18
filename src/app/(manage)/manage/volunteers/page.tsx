@@ -42,9 +42,9 @@ async function Volunteers({ searchParams }: { searchParams: PageProps<"/manage/v
       ) : (
         <Card title="Add a volunteer">
           {!authInvitesEnabled() ? (
-            <p className="mb-2 text-sm text-ink-muted">Invitation emails are switched off until the pilot is approved. People added here are ready to invite with the invite script.</p>
+            <p className="mb-2 text-sm text-ink-muted">Invitation emails are switched off. People added here are saved but <strong>not invited</strong>, and can&apos;t sign in until an invitation is sent.</p>
           ) : null}
-          <ActionForm action={inviteVolunteerAction} submitLabel="Add and invite" pendingLabel="Adding…">
+          <ActionForm action={inviteVolunteerAction} submitLabel={authInvitesEnabled() ? "Add and invite" : "Add volunteer"} pendingLabel="Adding…">
             <div className="grid gap-3 sm:grid-cols-3">
               <Field label="Name"><Input name="display_name" required maxLength={80} autoComplete="off" /></Field>
               <Field label="Email"><Input name="email" type="email" required maxLength={254} autoComplete="off" /></Field>

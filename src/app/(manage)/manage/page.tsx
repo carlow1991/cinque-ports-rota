@@ -6,9 +6,9 @@ import { Card, LinkButton } from "@/components/ui";
 import { MANAGER_ROLES } from "@/lib/auth/access";
 import { requireRole } from "@/lib/auth/dal";
 import Link from "next/link";
-import { loadActionQueue, loadOverview } from "@/lib/data/manage";
+import { loadActionQueue, loadManagedVenueIds, loadNextEvent, loadOverview } from "@/lib/data/manage";
 import { groupByDay } from "@/lib/domain/calendar";
-import { addDays, formatDateKey, startOfLondonDay, todayKey } from "@/lib/time/london";
+import { addDays, formatDateKey, formatDay, startOfLondonDay, todayKey } from "@/lib/time/london";
 
 export const metadata: Metadata = { title: "Organiser dashboard" };
 
@@ -26,6 +26,9 @@ async function Dashboard() {
   const days = Array.from({ length: 7 }, (_, i) => addDays(today, i));
   const [events, queue] = await Promise.all([loadOverview(startOfLondonDay(today), startOfLondonDay(addDays(today, 7))), loadActionQueue()]);
   const live = events.filter((e) => e.status !== "cancelled" && e.status !== "completed");
+  const next = live.length === 0
+    ? await loadNextEvent(startOfLondonDay(addDays(today, 7)), await loadManagedVenueIds(me.role === "admin", me.id))
+    : null;
   const lateCancels = queue.filter((q) => q.kind === "cancellation").length;
   const totals = {
     events: live.length,
@@ -73,6 +76,9 @@ async function Dashboard() {
       {live.length === 0 ? (
         <Card>
           <p className="text-ink-muted">No events in the next 7 days.</p>
+          {next ? (
+            <p className="mt-1 text-sm">Next scheduled: <Link href={`/manage/events/${next.id}`} className="font-semibold text-club-blue underline">{next.title}</Link>, {formatDay(new Date(next.starts_at))}{next.status === "draft" ? " (draft, not yet published)" : ""}</p>
+          ) : <p className="mt-1 text-sm text-ink-muted">Nothing is scheduled yet. Use <strong>New event</strong> to add one.</p>}
         </Card>
       ) : (
         days.map((d) => {

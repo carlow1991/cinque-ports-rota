@@ -11,6 +11,7 @@ import { loadCoverageEvents, loadEvent, loadEventPeople, loadLinkedEvents, loadT
 import { ShiftPeople } from "./shift-people";
 import { COVER_EXPLANATION, parseRanges } from "@/lib/domain/coverage";
 import { describeOffset } from "@/lib/domain/templates";
+import { capitalise, messagingState, notifyFuture } from "@/lib/email/state";
 import { formatLongDay, formatRange, formatTime, londonParts, zoneLabel } from "@/lib/time/london";
 import {
   addShiftAction, applyTemplateAction, cancelEventAction, cancelShiftAction, completeEventAction, linkCoverAction,
@@ -52,6 +53,9 @@ async function EventDetail({ params, searchParams }: { params: PageProps<"/manag
     loadEventPeople(e.id),
   ]);
   const ended = new Date(e.ends_at).getTime() <= people.now;
+  const mail = messagingState();
+  // What happened to email at the time is not recorded per event, so say what is true now.
+  const MAIL_NOTE = mail === "on" ? "They were emailed." : "Email may not have reached them (email is off or limited to approved addresses), so check they know.";
   const venue = venues.find((v) => v.id === e.venue_id);
   const team = teams.find((t) => t.id === e.team_id);
   const coverChoices = coverOptions.filter((c) => c.venue_id === e.venue_id && c.id !== e.id);
@@ -83,12 +87,12 @@ async function EventDetail({ params, searchParams }: { params: PageProps<"/manag
         </p>
         {e.status === "cancelled" ? (
           <Notice tone="bad" title="Event cancelled">
-            Reason: {e.status_reason ?? "none given"}. Everyone on a duty has been told and their reminders stopped.
+            Reason: {e.status_reason ?? "none given"}. Everyone on a duty was taken off and their reminders stopped. {MAIL_NOTE}
           </Notice>
         ) : null}
         {e.status === "postponed" ? (
           <Notice tone="warn" title="Event postponed">
-            Reason: {e.status_reason ?? "none given"}. Everyone who was on a duty has been told and asked to reconfirm. Set the new date
+            Reason: {e.status_reason ?? "none given"}. Everyone who was on a duty needs to reconfirm. {MAIL_NOTE} Set the new date
             under &ldquo;Change date or times&rdquo;, then publish again. Volunteers confirm afresh once it&apos;s published.
           </Notice>
         ) : null}
@@ -120,8 +124,10 @@ async function EventDetail({ params, searchParams }: { params: PageProps<"/manag
                   {l.display_name ? (
                     <>
                       <strong>{l.display_name}</strong>{" "}
-                      <Badge tone={l.status === "confirmed" && l.authorised ? "good" : "warn"}>
-                        {l.status === "confirmed" ? (l.authorised ? "Site lead confirmed" : "Confirmed but authorisation lapsed") : l.status === "pending_approval" ? "Awaiting approval" : "Invited, not confirmed"}
+                      <Badge tone={l.status === "confirmed" && l.authorised && !l.cancellation_requested ? "good" : "warn"}>
+                        {l.status === "confirmed"
+                          ? (l.cancellation_requested ? "Asked to cancel, not counted as cover" : l.authorised ? "Site lead confirmed" : "Confirmed but authorisation lapsed")
+                          : l.status === "pending_approval" ? "Awaiting approval" : "Invited, not confirmed"}
                       </Badge>
                     </>
                   ) : <Badge tone="bad">No site lead yet</Badge>}
@@ -212,13 +218,13 @@ async function EventDetail({ params, searchParams }: { params: PageProps<"/manag
           <div className="grid gap-4 sm:grid-cols-2">
             {e.status === "published" ? (
               <ActionForm action={postponeAction} submitLabel="Postpone event" variant="secondary"
-                confirm="Postpone? Everyone on a duty will be told and asked to reconfirm once you publish the new date.">
+                confirm={`Postpone? Everyone on a duty must reconfirm once you publish the new date; ${notifyFuture(mail, "they")}.`}>
                 <input type="hidden" name="event_id" value={e.id} />
                 <Field label="Reason for postponing (volunteers will see it)"><Input name="reason" required maxLength={500} /></Field>
               </ActionForm>
             ) : null}
             <ActionForm action={cancelEventAction} submitLabel="Cancel event" variant="danger"
-              confirm="Cancel this event? All duties are cancelled, volunteers are told and reminders stop. This can't be undone.">
+              confirm={`Cancel this event? All duties are cancelled and reminders stop; ${notifyFuture(mail, "volunteers")}. This can't be undone.`}>
               <input type="hidden" name="event_id" value={e.id} />
               <Field label="Reason for cancelling (volunteers will see it)"><Input name="reason" required maxLength={500} /></Field>
             </ActionForm>
@@ -361,9 +367,9 @@ function ShiftRow({ s, open, people, started }: { s: ShiftView; open: boolean; p
             <Field label="Instructions"><Textarea name="instructions" defaultValue={s.instructions ?? ""} maxLength={2000} /></Field>
           </ActionForm>
           <ActionForm action={cancelShiftAction} submitLabel="Remove this duty" variant="danger" className="mt-3 space-y-2"
-            confirm="Remove this duty? Anyone on it will be told it's cancelled.">
+            confirm={`Remove this duty? ${capitalise(notifyFuture(messagingState(), "anyone on it"))}.`}>
             <input type="hidden" name="shift_id" value={s.id} />
-            <Field label="Reason (sent to anyone on the duty)"><Input name="reason" required maxLength={500} /></Field>
+            <Field label="Reason (anyone on the duty will see it)"><Input name="reason" required maxLength={500} /></Field>
           </ActionForm>
         </details>
       ) : null}

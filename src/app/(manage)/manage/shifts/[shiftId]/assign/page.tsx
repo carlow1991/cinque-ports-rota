@@ -8,6 +8,7 @@ import { Badge, Notice } from "@/components/ui";
 import { MANAGER_ROLES } from "@/lib/auth/access";
 import { requireRole } from "@/lib/auth/dal";
 import { loadPicker, loadRoster, loadShiftForAssign } from "@/lib/data/manage";
+import { messagingState } from "@/lib/email/state";
 import { formatLongDay, formatRange } from "@/lib/time/london";
 import { allocateAction } from "../../../events/actions";
 
@@ -51,6 +52,7 @@ async function Assign({ params, searchParams }: { params: PageProps<"/manage/shi
 
       {closed ? <Notice tone="warn" title="Not open for invitations">Publish the event first. Invitations can&apos;t be sent for drafts or cancelled duties.</Notice> : null}
       <Notice tone="info">An invitation does not fill the place: it counts as cover only when the volunteer accepts (and, if the duty needs approval, once you approve it).</Notice>
+      <p className="text-sm text-ink-muted">{INVITE_EMAIL[messagingState()]}</p>
 
       <form action={`/manage/shifts/${shiftId}/assign`} className="flex gap-2">
         <label className="sr-only" htmlFor="q">Search by name</label>
@@ -69,7 +71,7 @@ async function Assign({ params, searchParams }: { params: PageProps<"/manage/shi
                   {status ? <Badge tone="good">{status === "confirmed" ? "Already confirmed" : status === "pending_approval" ? "Awaiting approval" : "Already invited"}</Badge> : null}
                   {!p.eligible ? <Badge tone="warn">Needs authorisation: {p.missing_authorisations.join(", ")}</Badge> : null}
                   {p.has_overlap ? <Badge tone="warn">Has another duty at this time</Badge> : null}
-                  {!status && p.eligible && !p.has_overlap ? <Badge tone="good">Available</Badge> : null}
+                  {!status && p.eligible && !p.has_overlap ? <Badge tone="good">No rota clash</Badge> : null}
                 </div>
               </div>
               {!status && p.eligible && !closed ? (
@@ -87,3 +89,11 @@ async function Assign({ params, searchParams }: { params: PageProps<"/manage/shi
     </section>
   );
 }
+
+/** What actually happens to the invitation email, so "Invite" is never read as "they've been told". */
+const INVITE_EMAIL = {
+  on: "Each invitation is emailed to the volunteer, and they also see it under My Duties.",
+  limited: "Invitation emails are queued, but in pilot mode only approved addresses receive them. Everyone sees their invitation under My Duties, so tell them to look.",
+  off: "Email is switched off, so nobody is emailed. People see their invitation under My Duties, so tell them to look.",
+  misconfigured: "Email is not set up correctly, so nobody is emailed. People see their invitation under My Duties, so tell them to look.",
+} as const;

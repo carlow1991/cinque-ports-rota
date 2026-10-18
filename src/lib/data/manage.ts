@@ -101,6 +101,23 @@ export async function loadOverview(from: Date, to: Date, venueId?: string | null
   return must<OverviewRow[]>(r, "events");
 }
 
+export type NextEvent = { id: string; title: string; venue_id: string; starts_at: string; status: string };
+
+/**
+ * The next event (draft or published) starting at or after `after`, limited to the venues this
+ * organiser manages. Used only to make empty states useful ("next scheduled: …"). RLS still
+ * applies; the venue filter keeps a coordinator's hint to their own venues.
+ */
+export async function loadNextEvent(after: Date, venueIds: string[] | "all"): Promise<NextEvent | null> {
+  if (venueIds !== "all" && venueIds.length === 0) return null;
+  const sb = await createClient();
+  let q = sb.from("events").select("id, title, venue_id, starts_at, status")
+    .in("status", ["draft", "published"]).gte("starts_at", after.toISOString());
+  if (venueIds !== "all") q = q.in("venue_id", venueIds);
+  const r = await q.order("starts_at").limit(1);
+  return must<NextEvent[]>(r, "next event")[0] ?? null;
+}
+
 export type CoverageOption = { id: string; title: string; venue_id: string; starts_at: string; ends_at: string; status: string };
 
 export async function loadCoverageEvents(from: Date, to: Date): Promise<CoverageOption[]> {
@@ -223,7 +240,7 @@ export async function loadActionQueue(): Promise<QueueRow[]> {
   return must<QueueRow[]>(await sb.rpc("manage_action_queue"), "the action list");
 }
 
-export type CoverLead = { source: "this_event" | "linked_cover"; event_id: string; event_title: string; shift_id: string; starts_at: string; ends_at: string; display_name: string | null; status: string | null; authorised: boolean | null };
+export type CoverLead = { source: "this_event" | "linked_cover"; event_id: string; event_title: string; shift_id: string; starts_at: string; ends_at: string; display_name: string | null; status: string | null; authorised: boolean | null; cancellation_requested: boolean | null };
 
 export async function loadCoverLeads(eventId: string): Promise<CoverLead[]> {
   const sb = await createClient();

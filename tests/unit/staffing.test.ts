@@ -8,6 +8,14 @@ const row = (o: Partial<RosterLike> & Pick<RosterLike, "shift_id">): RosterLike 
 });
 
 describe("staffingByShift", () => {
+  it("a confirmed person with a pending cancellation request is still confirmed but counted at risk", () => {
+    const s = staffingByShift([
+      row({ shift_id: "s1", required_count: 2, volunteer_id: "a", display_name: "A", status: "confirmed", cancellation_request_id: "r1" }),
+      row({ shift_id: "s1", required_count: 2, volunteer_id: "b", display_name: "B", status: "confirmed", cancellation_request_id: null }),
+    ]);
+    expect(s[0]).toMatchObject({ confirmed: 2, at_risk: 1, open: 0 });
+  });
+
   it("counts confirmed, pending (holds a place) and invited (does not) separately", () => {
     const s = staffingByShift([
       row({ shift_id: "s1", volunteer_id: "a", display_name: "A", status: "confirmed" }),

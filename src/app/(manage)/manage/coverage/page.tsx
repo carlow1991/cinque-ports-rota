@@ -5,10 +5,10 @@ import { PageLoading } from "@/components/app-header";
 import { Badge, Card, CoverBadge, DemoBadge, LinkButton } from "@/components/ui";
 import { MANAGER_ROLES } from "@/lib/auth/access";
 import { requireRole } from "@/lib/auth/dal";
-import { loadCoverGaps, loadCoverageWindow, loadDutyTypes, loadManagedVenueIds, loadTeams, loadVenues } from "@/lib/data/manage";
+import { loadCoverGaps, loadCoverageWindow, loadDutyTypes, loadManagedVenueIds, loadNextEvent, loadTeams, loadVenues } from "@/lib/data/manage";
 import { parseRanges } from "@/lib/domain/coverage";
 import { expectedOnSite, staffingByShift } from "@/lib/domain/staffing";
-import { addDays, formatDateKey, formatDay, formatRange, formatTime, isDateKey, startOfLondonDay, todayKey } from "@/lib/time/london";
+import { addDays, formatDateKey, formatDay, formatRange, formatTime, isDateKey, londonParts, startOfLondonDay, todayKey } from "@/lib/time/london";
 
 export const metadata: Metadata = { title: "Coverage" };
 
@@ -39,11 +39,26 @@ async function Coverage({ searchParams }: { searchParams: PageProps<"/manage/cov
   const live = overview.filter((e) => e.status !== "cancelled" && e.status !== "completed");
   const atRisk = live.filter((e) => e.cover_state === "at_risk" || e.cover_state === "no_cover");
   const provider = live.filter((e) => e.cover_state === "covered_by_provider");
-  const gapsByEvent = await loadCoverGaps(atRisk.map((e) => e.event_id));
+  const leadCovered = live.filter((e) => e.cover_state === "covered_by_volunteer");
+  const [gapsByEvent, next] = await Promise.all([
+    loadCoverGaps(atRisk.map((e) => e.event_id)),
+    live.length === 0 ? loadNextEvent(to, venueParam ? [venueParam] : managed) : Promise.resolve(null),
+  ]);
 
   const teamName = teams.find((t) => t.id === team)?.name;
-  const staffing = staffingByShift(roster)
-    .filter((s) => (!teamName || s.team_name === teamName) && (!duty || s.duty_code === duty) && (!onlyGaps || s.open > 0 || s.pending > 0 || s.invited > 0));
+  const allStaffing = staffingByShift(roster);
+  const matching = allStaffing.filter((s) => (!teamName || s.team_name === teamName) && (!duty || s.duty_code === duty));
+  const staffing = matching.filter((s) => !onlyGaps || s.open > 0 || s.pending > 0 || s.invited > 0 || s.at_risk > 0);
+  const filtered = Boolean(teamName || duty);
+  // Each empty state says which of these is true, rather than implying "all filled".
+  const dutiesEmpty =
+    allStaffing.length === 0 ? (live.length === 0 ? "No events in this period." : "No duties have been added to the events in this period.")
+    : matching.length === 0 ? "No duties match these filters."
+    : `No open places${filtered ? " for these filters" : ""}: all ${matching.length} ${matching.length === 1 ? "duty is" : "duties are"} fully confirmed.`;
+  const leadEmpty =
+    live.length === 0 ? "No events in this period."
+    : leadCovered.length === 0 ? "None of the events in this period need a volunteer site lead."
+    : `${leadCovered.length === 1 ? "The 1 event" : `All ${leadCovered.length} events`} needing a volunteer site lead ${leadCovered.length === 1 ? "has" : "have"} one confirmed for the whole time.`;
 
   const qs = (o: Record<string, string>) => {
     const p = new URLSearchParams({ day, span: span === 7 ? "week" : "", venue: venueParam, team, duty, all: onlyGaps ? "" : "1", ...o });
@@ -86,7 +101,13 @@ async function Coverage({ searchParams }: { searchParams: PageProps<"/manage/cov
       </nav>
 
       <Card title={`Site lead missing or at risk (${atRisk.length})`}>
-        {atRisk.length === 0 ? <p className="text-sm text-ink-muted">Every event that needs a site lead has one confirmed for its whole window.</p> : (
+        {live.length === 0 ? (
+          <div className="text-sm text-ink-muted">
+            <p>{leadEmpty}</p>
+            {next ? <p className="mt-1">Next scheduled: <Link href={`/manage/events/${next.id}`} className="font-semibold text-club-blue underline">{next.title}</Link>, {formatDay(new Date(next.starts_at))}{next.status === "draft" ? " (draft)" : ""} · <Link href={qs({ day: londonParts(new Date(next.starts_at)).dateKey })} className="text-club-blue underline">show that day</Link></p>
+              : <p className="mt-1">Nothing else is scheduled after this period.</p>}
+          </div>
+        ) : atRisk.length === 0 ? <p className="text-sm text-ink-muted">{leadEmpty}</p> : (
           <ul className="space-y-2">
             {atRisk.map((e) => {
               const gaps = parseRanges(gapsByEvent.get(e.event_id)?.gaps);
@@ -94,7 +115,7 @@ async function Coverage({ searchParams }: { searchParams: PageProps<"/manage/cov
                 <li key={e.event_id} className="rounded-lg border border-amber-600/40 bg-amber-50 p-2 text-sm">
                   <div className="flex flex-wrap items-center gap-2"><CoverBadge state={e.cover_state} /><DemoBadge show={e.is_demo} /></div>
                   <Link href={`/manage/events/${e.event_id}`} className="font-semibold text-club-blue underline">{e.title}</Link> · {e.venue_name} · {formatDay(new Date(e.starts_at))}
-                  {gaps.length ? <p>No confirmed site lead: {gaps.map((g) => formatRange(g.start, g.end)).join(", ")}</p> : null}
+                  {gaps.map((g) => <p key={g.start.toISOString()}>No confirmed site lead · {formatRange(g.start, g.end)}</p>)}
                   {e.coverage_event_id ? <p className="text-ink-muted">Uses venue-wide cover. Fix it on the cover event.</p> : null}
                 </li>
               );
@@ -107,7 +128,7 @@ async function Coverage({ searchParams }: { searchParams: PageProps<"/manage/cov
       </Card>
 
       <Card title={onlyGaps ? `Duties needing people (${staffing.length})` : `All duties (${staffing.length})`}>
-        {staffing.length === 0 ? <p className="text-sm text-ink-muted">{onlyGaps ? "No open places. Everything is filled." : "No duties in this period."}</p> : (
+        {staffing.length === 0 ? <p className="text-sm text-ink-muted">{dutiesEmpty}</p> : (
           <ul className="divide-y divide-line">
             {staffing.map((s) => (
               <li key={s.shift_id} className="flex flex-wrap items-center justify-between gap-2 py-2 text-sm">
@@ -118,6 +139,7 @@ async function Coverage({ searchParams }: { searchParams: PageProps<"/manage/cov
                     {s.confirmed}/{s.required} confirmed
                     {s.pending ? ` · ${s.pending} awaiting approval` : ""}
                     {s.invited ? ` · ${s.invited} invited (not counted)` : ""}
+                    {s.at_risk ? <> · <strong className="text-amber-800">{s.at_risk} asked to cancel</strong></> : ""}
                     {s.open ? <> · <strong className="text-danger">{s.open} open</strong></> : " · full"}
                   </p>
                 </div>
