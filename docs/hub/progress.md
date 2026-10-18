@@ -38,3 +38,12 @@ See `stage-0-audit.md`.
 **Screens** Event page: “Can you help?” (Yes → whole event / part → Send), my invitation (Accept / Decline / withdraw), sections Confirmed · Venue-wide cover · Expected by role · Available · (organisers) Awaiting · Declined — one card per person; organiser panels: Request availability (pre-ticked suggestions, explicit Send), Invite a person (request or record offline yes), Record availability. Member Home; `/manage/requests`.
 **Tests** `tests/db/hub-availability.db.test.ts` 28 (C14, C16–C24, H25, IDOR, rollback), `tests/unit/involvement.test.ts` (C47 card logic), `tests/e2e/hub-stage3.mts` 19/19.
 **Decided** Any signed-in member may offer availability on a help-wanted event; only people asked can be “Not replied”. Partial times on an event with no recorded finish are kept and flagged for an organiser. A volunteer can withdraw from something they confirmed (organiser sees it).
+
+## Stage 4 — Shared venue cover and the weekly overview ✅
+**Migration** `20261019000400_hub_venue_cover.sql` (rollback tested; restores Stage 3 functions).
+- Venue cover is one `hub_assignments` row (scope `venue`). Event pages derive it: **whole event**, **part of event**, or — when an event's finish isn't recorded — **at kick-off only**, never the whole event. Cancelled/changed cover updates every event at once; nothing is cloned.
+- Changing a confirmed cover's times asks the person to reconfirm unless the organiser records that they agreed.
+- Clash checks (cover and event invitations): only a different place at an overlapping time is a clash; same-venue overlap is fine. A clash needs a written note to save anyway.
+- Overview counts each person once per event (confirmed > expected > available > awaiting) and once per day across events and cover.
+**Screens** `/manage/venue-cover` (preview of overlapping events and clashes, request or record, change times, record answers, cancel), shared-cover band on the calendar and overview (“Also supports N overlapping events”), `/manage` overview (Needs attention + this week by day and venue, honest count badges).
+**Tests** `tests/db/hub-venue-cover.db.test.ts` 16 (C26–C31, H32, scope, rollback), `tests/e2e/hub-stage4.mts` 18/18; Stages 1–3 E2E re-run green.

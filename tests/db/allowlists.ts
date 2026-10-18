@@ -30,6 +30,8 @@ export const HUB_SIGNED_IN_FUNCTIONS = [
   "hub_invite_to_help", "hub_respond_assignment", "hub_withdraw_assignment", "hub_record_assignment_response",
   "hub_cancel_assignment", "hub_set_expected_override", "hub_event_involvement", "hub_request_candidates",
   "hub_people_picker", "hub_my_home", "hub_open_requests",
+  // Stage 4
+  "hub_create_venue_cover", "hub_update_venue_cover", "hub_venue_cover_preview", "hub_venue_covers", "hub_manage_overview",
 ];
 
 export const SIGNED_IN_FUNCTIONS = [...new Set([...LEGACY_SIGNED_IN_FUNCTIONS, ...HUB_SIGNED_IN_FUNCTIONS])].sort();

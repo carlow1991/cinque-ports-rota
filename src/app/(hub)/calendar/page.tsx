@@ -3,6 +3,9 @@ import Link from "next/link";
 import { Suspense } from "react";
 import { PageLoading } from "@/components/app-header";
 import { HubEventCard } from "@/components/hub/event-card";
+import { CoverBand } from "@/components/hub/cover-band";
+import { loadVenueCovers } from "@/lib/data/hub-involvement";
+import { coversFor } from "@/lib/domain/venue-cover";
 import { Card, Checkbox, Field, Select } from "@/components/ui";
 import { requirePerson } from "@/lib/auth/dal";
 import { CATEGORIES, groupByDayAndPlace } from "@/lib/domain/hub-calendar";
@@ -25,7 +28,8 @@ async function Calendar({ searchParams }: PageProps<"/calendar">) {
   const to = addDays(from, weeks * 7);
   const isManager = me.level !== "member";
   const showInactive = isManager && str("inactive") === "1";
-  const [events, names] = await Promise.all([loadEventsBetween(startOfLondonDay(from), startOfLondonDay(to)), loadNames()]);
+  const [events, names, covers] = await Promise.all([
+    loadEventsBetween(startOfLondonDay(from), startOfLondonDay(to)), loadNames(), loadVenueCovers(startOfLondonDay(from), startOfLondonDay(to))]);
   const venueFilter = str("venue"), teamFilter = str("team"), catFilter = str("type"), helpOnly = str("help") === "1";
   const list = events.filter((e) =>
     (!venueFilter || (venueFilter === "away" ? !e.venue_id : e.venue_id === venueFilter)) &&
@@ -72,6 +76,7 @@ async function Calendar({ searchParams }: PageProps<"/calendar">) {
           {g.places.map((p) => (
             <div key={p.place} className="space-y-2">
               <h3 className="text-sm font-semibold uppercase tracking-wide text-ink-muted">{p.place}{p.events.length > 1 ? ` · ${p.events.length} events` : ""}</h3>
+              <CoverBand covers={coversFor(covers, g.day, p.events[0].venue_id)} />
               {p.events.map((e) => (
                 <HubEventCard key={e.id} e={e} href={`/calendar/${e.id}`} team={e.team_id ? names.teams.get(e.team_id) : undefined} />
               ))}
