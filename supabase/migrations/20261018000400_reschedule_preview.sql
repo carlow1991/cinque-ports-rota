@@ -61,9 +61,6 @@ begin
   if v_shift_ids is not null then
     update public.event_shifts sh set starts_at = x.ns, ends_at = x.ne
       from unnest(v_shift_ids, v_ns, v_ne) as x(id, ns, ne) where sh.id = x.id;
-  end if;
-
-  if v_shift_ids is not null then
     n := public._reset_assignments_for_reconfirm(v_shift_ids, 'reconfirm_needed');
   end if;
   if v_e.event_type = 'venue_coverage' then perform public._alert_dependent_events(p_event_id); end if;
