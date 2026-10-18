@@ -114,9 +114,9 @@ describe("login: verify code", () => {
 
   it("valid code + invited active volunteer → linked and sent home", async () => {
     const s = scenario({});
-    expect(await redirectOf(verifyCode(state, form({ email: "sam@example.org", code: "123 456" })))).toBe("/rota");
+    expect(await redirectOf(verifyCode(state, form({ email: "sam@example.org", code: "123 456" })))).toBe("/home");
     expect(s.calls.verifyOtp).toHaveBeenCalledWith({ email: "sam@example.org", token: "123456", type: "email" });
-    expect(s.calls.rpc).toHaveBeenCalledWith("link_volunteer_account");
+    expect(s.calls.rpc).toHaveBeenCalledWith("link_person_account");
   });
 
   it("admin lands on /manage", async () => {
@@ -159,11 +159,11 @@ describe("login: verify code", () => {
 describe("/auth/callback", () => {
   const req = (qs: string) => new NextRequest(`https://rota.example.org/auth/callback?${qs}`);
 
-  it("valid invite link for an invited volunteer → home", async () => {
+  it("valid invite link for an invited person → Hub home", async () => {
     scenario({});
     const res = await callback(req("token_hash=abc&type=invite"));
     expect(res.status).toBe(303);
-    expect(res.headers.get("location")).toBe("https://rota.example.org/rota");
+    expect(res.headers.get("location")).toBe("https://rota.example.org/home");
   });
 
   it("uninvited user arriving by link → signed out, /login?error=access", async () => {
@@ -189,6 +189,26 @@ describe("/auth/callback", () => {
   it("ignores an off-site next parameter (no open redirect)", async () => {
     scenario({});
     const res = await callback(req("token_hash=abc&type=email&next=https://evil.example"));
-    expect(res.headers.get("location")).toBe("https://rota.example.org/rota");
+    expect(res.headers.get("location")).toBe("https://rota.example.org/home");
+  });
+});
+
+describe("Hub guards (requirePerson / requireLevel)", () => {
+  it("signed out → /login; no account → /no-access; disabled → /no-access", async () => {
+    const { requirePerson } = await import("@/lib/auth/dal");
+    scenario({ sub: null });
+    expect(await redirectOf(requirePerson())).toBe("/login");
+    scenario({ volunteer: null });
+    expect(await redirectOf(requirePerson())).toBe("/no-access");
+    scenario({ volunteer: { ...ACTIVE_VOLUNTEER, is_active: false } });
+    expect(await redirectOf(requirePerson())).toBe("/no-access");
+  });
+  it("a member asking for an organiser page → bounced to /home; admins allowed", async () => {
+    const { requireLevel } = await import("@/lib/auth/dal");
+    const { HUB_MANAGERS } = await import("@/lib/auth/access");
+    scenario({});
+    expect(await redirectOf(requireLevel(HUB_MANAGERS))).toBe("/home");
+    scenario({ volunteer: ACTIVE_ADMIN });
+    expect((await requireLevel(HUB_MANAGERS)).level).toBe("admin");
   });
 });

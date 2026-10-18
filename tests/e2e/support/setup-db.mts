@@ -121,5 +121,15 @@ begin
   values (mw, 'E2E Secret draft', 'fixture', (base + time '18:00') at time zone uk, (base + time '19:00') at time zone uk, 'draft');
 end $$;`);
 
+// Volunteer Hub: these test volunteers were inserted AFTER the Stage 1 migration, so bridge them the
+// same way the migration bridges real ones (same ids and Auth links).
+await db.query(`
+  insert into people (id, full_name, email_normalized, involvement)
+  select v.id, v.display_name, lower(v.email::text), array['volunteer'] from volunteers v on conflict (id) do nothing;
+  insert into user_accounts (person_id, auth_user_id, access_level, enabled, invited_at, invite_state, linked_at)
+  select v.id, v.auth_user_id, case v.role when 'volunteer' then 'member' else v.role::text end, v.is_active, v.invited_at, 'sent', v.linked_at
+  from volunteers v where v.invited_at is not null or v.auth_user_id is not null on conflict (person_id) do nothing;
+  insert into coordinator_scopes (person_id, venue_id) select volunteer_id, venue_id from coordinator_venues on conflict do nothing;
+`);
 await db.end();
 console.log(u.toString());

@@ -2,6 +2,7 @@ import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 import { publicEnv } from "@/lib/env";
 import { isPublicPath } from "@/lib/auth/paths";
+import { legacyRedirect, legacyRotaEnabled } from "@/lib/legacy";
 
 /**
  * Refreshes the Supabase session cookie on every request and sends signed-out
@@ -11,6 +12,16 @@ import { isPublicPath } from "@/lib/auth/paths";
  * server in every protected page and action via src/lib/auth/dal.ts, and in the database via RLS.
  */
 export async function updateSession(request: NextRequest) {
+  // Retired rota screens go to their Hub equivalents unless the legacy flag is on.
+  if (!legacyRotaEnabled()) {
+    const to = legacyRedirect(request.nextUrl.pathname);
+    if (to) {
+      const url = request.nextUrl.clone();
+      url.pathname = to;
+      url.search = "";
+      return NextResponse.redirect(url);
+    }
+  }
   let response = NextResponse.next({ request });
   const { supabaseUrl, supabaseKey } = publicEnv();
 

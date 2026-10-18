@@ -3,12 +3,12 @@ import { Suspense } from "react";
 import { ActionForm } from "@/components/action-form";
 import { PageLoading } from "@/components/app-header";
 import { Card, Checkbox, Field, Input, Notice, Textarea } from "@/components/ui";
-import { requireRole } from "@/lib/auth/dal";
+import { requireLevel } from "@/lib/auth/dal";
+import { HUB_ADMIN } from "@/lib/auth/access";
 import { loadClubSettings, loadDutyTypes, loadEmailBacklog, loadEmailRelease, loadOutboxSummary, loadTeams, loadVenues, type EmailBacklogRow, type OutboxSummaryRow } from "@/lib/data/manage";
 import { emailConfig } from "@/lib/email/worker";
 import { formatDay, formatTime } from "@/lib/time/london";
 import { retryFailedEmailsAction, saveClubSettingsAction, setEmailReleaseAction, saveDutyTypeAction, saveTeamAction, saveVenueAction } from "./actions";
-import { SetupTabs } from "@/components/manage-nav";
 
 export const metadata: Metadata = { title: "Settings" };
 
@@ -21,7 +21,7 @@ export default function SettingsPage({ searchParams }: PageProps<"/manage/settin
 }
 
 async function Settings({ searchParams }: { searchParams: PageProps<"/manage/settings">["searchParams"] }) {
-  await requireRole(["admin"]);
+  await requireLevel(HUB_ADMIN);
   const [venues, teams, duties, settings, outbox, backlog, release] = await Promise.all([
     loadVenues(), loadTeams(), loadDutyTypes(), loadClubSettings(), loadOutboxSummary(), loadEmailBacklog(), loadEmailRelease(),
   ]);
@@ -32,7 +32,6 @@ async function Settings({ searchParams }: { searchParams: PageProps<"/manage/set
 
   return (
     <section className="space-y-4">
-      <SetupTabs current="settings" isAdmin />
       <h1 className="text-2xl font-bold text-club">Settings</h1>
 
       <Card title="Rota rules">

@@ -1,6 +1,9 @@
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { createTestDb, rows, type TestDb } from "./harness";
 import { expectCode } from "./fixtures";
+import { HUB_SELECT_ONLY_TABLES, SERVICE_ROLE_FUNCTIONS } from "./allowlists";
+
+const byName = (a: { table_name: string }, b: { table_name: string }) => (a.table_name < b.table_name ? -1 : a.table_name > b.table_name ? 1 : 0);
 
 /**
  * Phase 7 pre-pilot security audit, run against migrations applied ON TOP OF Supabase's real
@@ -63,7 +66,8 @@ describe("anonymous visitors (publishable key, not signed in)", () => {
 
 describe("signed-in users (authenticated): exact grant snapshot; RLS narrows every row further", () => {
   it("table-level grants", async () => {
-    expect(await tableGrants("authenticated")).toEqual([
+    const hub = HUB_SELECT_ONLY_TABLES.map((t) => ({ table_name: t, p: "SELECT" }));
+    expect((await tableGrants("authenticated")).sort(byName)).toEqual([...hub, ...[
       { table_name: "assignments", p: "SELECT" },
       { table_name: "audit_log", p: "SELECT" },
       { table_name: "cancellation_requests", p: "SELECT" },
@@ -80,7 +84,7 @@ describe("signed-in users (authenticated): exact grant snapshot; RLS narrows eve
       { table_name: "venues", p: "INSERT,SELECT,UPDATE" },
       { table_name: "volunteer_duty_authorisations", p: "SELECT" },
       { table_name: "volunteers", p: "SELECT" },
-    ]);
+    ]].sort(byName));
   });
   it("no direct writes to assignments, cancellations, authorisations, audit or the outbox", async () => {
     const g = await tableGrants("authenticated");
@@ -121,8 +125,7 @@ describe("the secret key (service_role): least privilege", () => {
     await expect(db.asService((c) => c.query("select * from public.audit_log"))).rejects.toThrow(/permission denied/);
   });
   it("can call exactly the email worker functions and the first-admin bootstrap", async () => {
-    expect(await callable("service_role")).toEqual(
-      ["admin_bootstrap_volunteer", "outbox_claim", "outbox_complete", "outbox_enqueue_reminders", "outbox_suppress"]);
+    expect(await callable("service_role")).toEqual(SERVICE_ROLE_FUNCTIONS);
   });
 });
 
