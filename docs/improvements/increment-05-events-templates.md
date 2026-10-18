@@ -84,7 +84,7 @@ A DB test moves an event with both a template duty and a hand-made duty, and che
 | Suite | Result |
 | --- | --- |
 | typecheck, lint | clean |
-| `vitest run` (unit + DB) | **26 files, 405 tests passed** (+2 after the pronoun test) |
+| `vitest run` (unit + DB) | **26 files, 406 tests passed** (including the pronoun test) |
 | e2e phase 3 / 4 / 5 / 6 / 7 | 25/25, 37/37, 47/47, 39/39, 19/19 |
 | e2e increments 2, 3, 4 (regression) | 12/12, 19/19, 17/17 |
 | e2e increment 5 (new) | **26/26** |
