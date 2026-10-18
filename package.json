@@ -22,6 +22,7 @@
     "e2e:improve04": "tests/e2e/run.sh tests/e2e/improve-volunteer-home.mts",
     "e2e:improve05": "tests/e2e/run.sh tests/e2e/improve-events-templates.mts",
     "e2e:improve06": "tests/e2e/run.sh tests/e2e/improve-email-release.mts",
+    "e2e:improve07": "tests/e2e/run.sh tests/e2e/improve-shared-cover.mts",
     "check-env": "node scripts/check-env.mts"
   },
   "dependencies": {

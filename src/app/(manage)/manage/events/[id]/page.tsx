@@ -10,6 +10,8 @@ import { requireRole } from "@/lib/auth/dal";
 import { SubTabs } from "@/components/manage-nav";
 import { loadCoverageEvents, loadEvent, loadEventPeople, loadLinkedEvents, loadReschedulePreview, loadTeams, loadTemplates, loadVenues, type ReschedulePreviewRow, type RosterRow, type ShiftView } from "@/lib/data/manage";
 import { ShiftPeople } from "./shift-people";
+import { SplitForm } from "./split-form";
+import { rankCover, requiredWindow } from "@/lib/domain/cover-fit";
 import { COVER_EXPLANATION, parseRanges } from "@/lib/domain/coverage";
 import { describeOffset } from "@/lib/domain/templates";
 import { capitalise, notifyFuture, notifyOutcome, type MessagingState } from "@/lib/email/state";
@@ -61,6 +63,12 @@ async function EventDetail({ params, searchParams }: { params: PageProps<"/manag
   const venue = venues.find((v) => v.id === e.venue_id);
   const team = teams.find((t) => t.id === e.team_id);
   const coverChoices = coverOptions.filter((c) => c.venue_id === e.venue_id && c.id !== e.id);
+  // Suggestions use the real operational window (event + setup/cleaning duties), not just the event.
+  const need = requiredWindow(e, shifts);
+  const ranked = rankCover(need, coverChoices);
+  const fitLabel = new Map(ranked.map(({ cover, fit }) => [cover.id, fit.kind === "whole" ? "planned for the whole time"
+    : `misses ${fit.kind === "partial" ? fit.missing.map((m) => formatRange(new Date(m.start), new Date(m.end))).join(" and ") : ""}`]));
+  const best = ranked[0];
   const linkedCover = coverOptions.find((c) => c.id === e.coverage_event_id);
   const gaps = parseRanges(coverage?.gaps);
   const generated = new Set(shifts.map((s) => s.source_template_item_id).filter(Boolean) as string[]);
@@ -172,7 +180,8 @@ async function EventDetail({ params, searchParams }: { params: PageProps<"/manag
             </div>
           ) : null}
           {e.site_cover_source !== "club_volunteer" ? (
-            <p className="mt-2 text-sm"><Badge tone="info">{e.site_cover_source === "provider_verified" ? "Provider cover (admin-verified)" : "Not required (admin decision)"}</Badge> {e.external_cover_note}</p>
+            <p className="mt-2 text-sm"><Badge tone="info">{e.site_cover_source === "provider_verified" ? "Provider cover (admin-verified)" : "Not required (admin decision)"}</Badge> {e.external_cover_note}
+              {e.external_cover_verified_at ? <span className="block text-xs text-ink-muted">Recorded by an administrator on {formatDay(new Date(e.external_cover_verified_at))} at {formatTime(new Date(e.external_cover_verified_at))}.</span> : null}</p>
           ) : null}
 
           {e.event_type !== "venue_coverage" ? (
@@ -182,9 +191,17 @@ async function EventDetail({ params, searchParams }: { params: PageProps<"/manag
                 <Field label="Venue-wide cover event" hint="Same venue only. Linking removes this event's own site-lead duty if nobody has taken it yet.">
                   <Select name="coverage_event_id" defaultValue={e.coverage_event_id ?? ""}>
                     <option value="">Not linked: this event provides its own site lead</option>
-                    {coverChoices.map((c) => <option key={c.id} value={c.id}>{c.title} ({formatRange(new Date(c.starts_at), new Date(c.ends_at))})</option>)}
+                    {[...ranked.map((r) => r.cover), ...coverChoices.filter((c) => !fitLabel.has(c.id))].map((c) => (
+                      <option key={c.id} value={c.id}>{c.title} ({formatRange(new Date(c.starts_at), new Date(c.ends_at))}{fitLabel.has(c.id) ? `, ${fitLabel.get(c.id)}` : ", doesn't overlap"})</option>
+                    ))}
                   </Select>
                 </Field>
+                <p className="text-sm">This event needs a site lead from <strong className="font-mono tabular-nums">{formatRange(new Date(need.start), new Date(need.end))}</strong> (its own time plus setup and clean-up duties).</p>
+                {!e.coverage_event_id && best ? (
+                  <p className="text-sm">
+                    Suggested: <strong>{best.cover.title}</strong>, {fitLabel.get(best.cover.id)}. Linking isn&apos;t cover by itself: a confirmed site lead on it is still needed.
+                  </p>
+                ) : null}
                 {linkedCover ? <p className="text-sm">Currently linked to <Link className="text-club-blue underline" href={`/manage/events/${linkedCover.id}`}>{linkedCover.title}</Link>.</p> : null}
               </ActionForm>
             </div>
@@ -462,8 +479,25 @@ function ShiftRow({ s, open, people, started, mail }: { s: ShiftView; open: bool
           </ActionForm>
         </details>
       ) : null}
+      {open && !started && s.duty_code === "site_lead" ? (
+        <details className="mt-2">
+          <summary className="cursor-pointer text-sm font-semibold text-club">Split into a handover (two site leads)</summary>
+          {onDuty ? (
+            <p className="mt-2 text-sm text-ink-muted">Someone is already on this duty. A duty can only be split before anyone is invited or signs up.</p>
+          ) : (
+            <SplitForm shiftId={s.id} startsAt={s.starts_at} endsAt={s.ends_at} responsibilities={s.responsibilities}
+              defaultDate={midpoint(st, en).dateKey} defaultTime={midpoint(st, en).time} />
+          )}
+        </details>
+      ) : null}
     </li>
   );
+}
+
+/** Midpoint of a duty, rounded to the nearest 15 minutes, as a UK date and time (default handover). */
+function midpoint(st: Date, en: Date) {
+  const q = 15 * 60_000;
+  return londonParts(new Date(Math.round((st.getTime() + en.getTime()) / 2 / q) * q));
 }
 
 const reconfirmTotal = (rows: ReschedulePreviewRow[]) => rows.reduce((n, r) => n + r.people_to_reconfirm, 0);

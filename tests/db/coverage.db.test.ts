@@ -284,3 +284,75 @@ describe("misc integrity", () => {
     await expect(db.asUser(admin.uid, (c) => c.query("delete from events where id = $1", [e]))).rejects.toThrow(/permission denied/);
   });
 });
+
+describe("increment 7: guided handover split and extra §7 acceptance cases", () => {
+  type Resp = { code: string };
+  const respOf = (shift: string) => rows<Resp>(db.admin,
+    "select d.code from event_shift_responsibilities r join duty_types d on d.id = r.duty_type_id where r.shift_id = $1 order by d.code", [shift]);
+
+  it("splits a site lead into two parts that meet exactly; opening stays first, locking moves second", async () => {
+    const w = await saturdayOps(1700);                       // lead 1700h–1706h incl. open, checks, lock
+    const r = await rpc<{ first_shift_id: string; second_shift_id: string }>(db, coord, "split_site_lead_shift", [w.leadShift, inHours(1703)]);
+    const [a] = await rows<{ starts_at: Date; ends_at: Date; source_template_item_id: string | null }>(db.admin, "select starts_at, ends_at, source_template_item_id from event_shifts where id = $1", [r.first_shift_id]);
+    const [b] = await rows<{ starts_at: Date; ends_at: Date }>(db.admin, "select starts_at, ends_at from event_shifts where id = $1", [r.second_shift_id]);
+    expect(a.ends_at.getTime()).toBe(b.starts_at.getTime());
+    expect([a.starts_at.getTime(), b.ends_at.getTime()]).toEqual([inHours(1700).getTime(), inHours(1706).getTime()]);
+    expect((await respOf(r.first_shift_id)).map((x) => x.code)).toEqual(["facility_checks", "open_unlock"]);
+    expect((await respOf(r.second_shift_id)).map((x) => x.code)).toEqual(["facility_checks", "lock_secure"]);
+    expect(a.source_template_item_id).toBeNull();
+    // Only the first half confirmed → at risk with exactly the second half as the gap; both → covered.
+    const [l1, l2] = [await lead(), await lead()];
+    await rpc(db, l1, "self_signup", [r.first_shift_id]);
+    const half = await coverage(w.youth);
+    expect(half.state).toBe("at_risk");
+    const [gap] = await rows<{ g: string }>(db.admin, "select tstzmultirange(tstzrange($1::timestamptz, $2::timestamptz, '[)'))::text as g", [inHours(1703), inHours(1704.5)]);
+    expect(half.gaps).toBe(gap.g);
+    await rpc(db, l2, "self_signup", [r.second_shift_id]);
+    expect((await coverage(w.youth)).state).toBe("covered_by_volunteer");
+  });
+
+  it("each part needs only its own authorisations (opening vs locking)", async () => {
+    const w = await saturdayOps(1800);
+    const r = await rpc<{ first_shift_id: string; second_shift_id: string }>(db, coord, "split_site_lead_shift", [w.leadShift, inHours(1803)]);
+    const closer = await person(db);
+    for (const c of ["site_lead", "lock_secure"]) await authorise(db, closer.id, c);    // can lock up, can't open up
+    await expectCode(rpc(db, closer, "self_signup", [r.first_shift_id]), "not_eligible");
+    expect((await rpc<{ status: string }>(db, closer, "self_signup", [r.second_shift_id])).status).toBe("confirmed");
+  });
+
+  it("refuses: someone already on it, handover too close to an end, not a site lead, another venue's coordinator", async () => {
+    const w = await saturdayOps(1900);
+    const l = await lead();
+    await rpc(db, coord, "allocate_volunteer", [w.leadShift, l.id]);                    // invited counts as someone on it
+    await expectCode(rpc(db, coord, "split_site_lead_shift", [w.leadShift, inHours(1903)]), "shift_has_people");
+    const w2 = await saturdayOps(1910);
+    await expectCode(rpc(db, coord, "split_site_lead_shift", [w2.leadShift, new Date(inHours(1910).getTime() + 10 * 60_000)]), "invalid_handover");
+    const [setup] = await rows<{ id: string }>(db.admin, "select id from event_shifts where event_id = $1 limit 1", [w2.youth]);
+    await expectCode(rpc(db, coord, "split_site_lead_shift", [setup.id, inHours(1910.5)]), "not_site_lead");
+    const other = await makeCoordinator(db, [mw]);
+    await expectCode(rpc(db, other, "split_site_lead_shift", [w2.leadShift, inHours(1913)]), "not_authorised");
+  });
+
+  it("a one-minute gap between two confirmed leads is still a gap", async () => {
+    const cover = await makeEvent(db, { venue: fw, type: "venue_coverage", start: inHours(2000), end: inHours(2006) });
+    const am = await makeShift(db, { event: cover, duty: "site_lead", start: inHours(2000), end: inHours(2003) });
+    const pm = await makeShift(db, { event: cover, duty: "site_lead", start: new Date(inHours(2003).getTime() + 60_000), end: inHours(2006) });
+    const youth = await makeEvent(db, { venue: fw, start: inHours(2001), end: inHours(2005), coverageEventId: cover });
+    const [l1, l2] = [await lead(), await lead()];
+    await rpc(db, l1, "self_signup", [am]);
+    await rpc(db, l2, "self_signup", [pm]);
+    const c = await coverage(youth);
+    expect(c.state).toBe("at_risk");
+    const [gap] = await rows<{ g: string }>(db.admin, "select tstzmultirange(tstzrange($1::timestamptz, $2::timestamptz, '[)'))::text as g", [inHours(2003), new Date(inHours(2003).getTime() + 60_000)]);
+    expect(c.gaps).toBe(gap.g);
+  });
+
+  it("a lead awaiting approval is not cover", async () => {
+    const cover = await makeEvent(db, { venue: fw, type: "venue_coverage", start: inHours(2100), end: inHours(2104) });
+    const s = await makeShift(db, { event: cover, duty: "site_lead", start: inHours(2100), end: inHours(2104), approval: true });
+    const youth = await makeEvent(db, { venue: fw, start: inHours(2101), end: inHours(2103), coverageEventId: cover });
+    const l = await lead();
+    expect((await rpc<{ status: string }>(db, l, "self_signup", [s])).status).toBe("pending_approval");
+    expect((await coverage(youth)).state).toBe("at_risk");
+  });
+});

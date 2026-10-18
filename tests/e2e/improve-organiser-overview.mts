@@ -127,7 +127,9 @@ await A.waitForURL(/range=today/);
 await A.goBack();
 await A.waitForURL(/range=7$/);
 await settle(A);
-check("back returns to the bookmarked 7-day range", (await A.getByRole("navigation", { name: "Date range" }).getByRole("link", { name: "Next 7 days" }).getAttribute("aria-current")) === "page");
+// Wait for the page to finish re-rendering after "back" rather than reading the old DOM once.
+const backOk = await A.locator('nav[aria-label="Date range"] a[aria-current="page"]', { hasText: "Next 7 days" }).waitFor({ timeout: 10_000 }).then(() => true, () => false);
+check("back returns to the bookmarked 7-day range", backOk);
 await shot(A, "03-overview-7-days");
 
 // 4. Navigation groups, primary New event, mode switch, old URLs.

@@ -132,7 +132,7 @@ export type EventRow = {
   id: string; venue_id: string; team_id: string | null; coverage_event_id: string | null; title: string; event_type: string;
   starts_at: string; ends_at: string; kickoff_at: string | null; opponent: string | null; competition: string | null;
   description: string | null; instructions: string | null; status: string; status_reason: string | null; site_responsibility: boolean;
-  site_cover_source: string; external_cover_note: string | null; is_demo: boolean;
+  site_cover_source: string; external_cover_note: string | null; external_cover_verified_at: string | null; is_demo: boolean;
 };
 export type ShiftView = {
   id: string; duty_type_id: string; duty_code: string; duty_name: string; starts_at: string; ends_at: string; required_count: number;
@@ -145,7 +145,7 @@ export type Coverage = { state: string; coverage_event_id: string | null; requir
 export async function loadEvent(id: string) {
   const sb = await createClient();
   const ev = await sb.from("events")
-    .select("id, venue_id, team_id, coverage_event_id, title, event_type, starts_at, ends_at, kickoff_at, opponent, competition, description, instructions, status, status_reason, site_responsibility, site_cover_source, external_cover_note, is_demo")
+    .select("id, venue_id, team_id, coverage_event_id, title, event_type, starts_at, ends_at, kickoff_at, opponent, competition, description, instructions, status, status_reason, site_responsibility, site_cover_source, external_cover_note, external_cover_verified_at, is_demo")
     .eq("id", id).maybeSingle();
   if (ev.error) throw new Error("Could not load the event.");
   if (!ev.data) return null;

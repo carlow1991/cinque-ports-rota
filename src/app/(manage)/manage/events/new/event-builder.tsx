@@ -3,6 +3,7 @@
 import { useActionState, useMemo, useState } from "react";
 import { Button, Card, Checkbox, Field, FormMessage, Input, Notice, Select, Textarea, EVENT_TYPE_LABEL } from "@/components/ui";
 import { describeOffset, expandTemplate } from "@/lib/domain/templates";
+import { coverFit, requiredWindow } from "@/lib/domain/cover-fit";
 import { formatRange, londonWindow, zoneLabel } from "@/lib/time/london";
 import type { CoverageOption, Team, Template, Venue } from "@/lib/data/manage";
 import { useHydrated } from "@/lib/use-hydrated";
@@ -70,6 +71,15 @@ export function EventBuilder({ venues, teams, templates, coverageEvents, today }
         { enabled: new Set(template.items.map((i) => i.id)), counts }).shifts.map((x) => [x.itemId, formatRange(x.startsAt, x.endsAt)])
     : []);
   const needsDecision = siteResp && !coverId && !leadPlanned;
+  // How well each venue-cover event's planned time spans this event plus its setup/clean-up duties.
+  const need = w.ok ? requiredWindow({ starts_at: w.startsAt.toISOString(), ends_at: w.endsAt.toISOString() },
+    (preview?.shifts ?? []).map((x) => ({ starts_at: x.startsAt.toISOString(), ends_at: x.endsAt.toISOString() }))) : null;
+  const fitText = (c: CoverageOption) => {
+    if (!need) return "";
+    const f = coverFit(need, c);
+    return f.kind === "whole" ? ", covers the whole time" : f.kind === "none" ? ", doesn't overlap"
+      : `, misses ${f.missing.map((m) => formatRange(new Date(m.start), new Date(m.end))).join(" and ")}`;
+  };
 
   return (
     <form action={action} className="space-y-4">
@@ -140,7 +150,7 @@ export function EventBuilder({ venues, teams, templates, coverageEvents, today }
                 <option value="">No, not linked</option>
                 {coverOptions.map((c) => (
                   <option key={c.id} value={c.id}>
-                    {c.title} ({new Date(c.starts_at).toLocaleDateString("en-GB", { timeZone: "Europe/London", weekday: "short", day: "numeric", month: "short" })}, {formatRange(new Date(c.starts_at), new Date(c.ends_at))})
+                    {c.title} ({new Date(c.starts_at).toLocaleDateString("en-GB", { timeZone: "Europe/London", weekday: "short", day: "numeric", month: "short" })}, {formatRange(new Date(c.starts_at), new Date(c.ends_at))}{fitText(c)})
                   </option>
                 ))}
               </Select>

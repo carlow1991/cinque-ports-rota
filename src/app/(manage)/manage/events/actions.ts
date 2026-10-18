@@ -363,3 +363,17 @@ export async function completeEventAction(_p: ActionResult | null, fd: FormData)
   if (!e.success) return fail("Event not found.");
   return rpcAction("complete_event", { p_event_id: e.data }, "Marked as completed.");
 }
+
+/** Split a site-lead duty into two handover duties that meet exactly at the chosen time. */
+export async function splitSiteLeadAction(_p: ActionResult | null, fd: FormData): Promise<ActionResult> {
+  await requireRole(MANAGER_ROLES);
+  const id = uuid.safeParse(fd.get("shift_id"));
+  if (!id.success) return fail("Duty not found.");
+  const at = londonToInstant(String(fd.get("date") ?? ""), String(fd.get("time") ?? ""));
+  if (!at.ok) return fail("Enter a valid handover date and time.");
+  const sb = await createClient();
+  const { error } = await sb.rpc("split_site_lead_shift", { p_shift_id: id.data, p_at: at.instant.toISOString() });
+  if (error) return fail(friendlyError(error));
+  refresh();
+  return { ok: true, message: "Split into two handover duties. Fill both to keep continuous cover." };
+}
