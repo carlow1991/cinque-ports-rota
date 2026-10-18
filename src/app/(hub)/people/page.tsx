@@ -18,7 +18,8 @@ async function People({ searchParams }: PageProps<"/people">) {
   const sp = await searchParams;
   const q = typeof sp.q === "string" ? sp.q.trim().toLowerCase().slice(0, 80) : "";
   const people = await loadDirectory();
-  const list = people.filter((p) => !q || p.name.toLowerCase().includes(q) || p.teams.some((t) => `${t.team} ${t.role}`.toLowerCase().includes(q)));
+  const list = people.filter((p) => !q || p.name.toLowerCase().includes(q) || p.teams.some((t) => `${t.team} ${t.role}`.toLowerCase().includes(q))
+    || p.positions.some((x) => x.toLowerCase().includes(q)));
   return (
     <section aria-labelledby="h" className="space-y-4">
       <h1 id="h" className="text-2xl font-bold text-club">People</h1>
@@ -31,6 +32,7 @@ async function People({ searchParams }: PageProps<"/people">) {
           {list.map((p) => (
             <li key={p.person_id} className="rounded-xl border border-line bg-white p-3">
               <p className="font-semibold">{p.name}</p>
+              {p.positions.length ? <p className="text-sm font-medium text-club">{p.positions.join(" · ")}</p> : null}
               {p.teams.length ? <p className="text-sm">{p.teams.map((t) => `${t.role}, ${t.team}`).join(" · ")}</p>
                 : <p className="text-sm text-ink-muted">{p.involvement.map((i) => labelFor(INVOLVEMENT, i)).join(" · ")}</p>}
               {p.email || p.phone ? (

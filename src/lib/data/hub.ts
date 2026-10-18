@@ -17,7 +17,7 @@ function mustOne<T>(r: { data: T | null; error: { message: string } | null }, wh
 }
 
 export type DirectoryRow = {
-  person_id: string; name: string; involvement: string[]; teams: { team: string; role: string }[];
+  person_id: string; name: string; involvement: string[]; teams: { team: string; role: string }[]; positions: string[];
   email: string | null; phone: string | null; portal_status: string | null;
   routine_requests_enabled: boolean | null; lifecycle_status: string | null; is_under_18: boolean | null;
 };
@@ -102,4 +102,23 @@ function normalisePrefs(raw: unknown): Preferences | null {
     strengths: Array.isArray(r.strengths) ? r.strengths : [], interests: Array.isArray(r.interests) ? r.interests : [],
     free_text: r.free_text ?? null,
   };
+}
+
+export type Position = {
+  id: string; title: string; department: string | null; public_summary: string | null; responsibilities: string | null;
+  estimated_commitment: string | null; work_location_preference: string | null; skills_required: string[]; skills_desirable: string[];
+  interest_tags: string[]; training_available: boolean; requires_external_safeguarding_review: boolean; public_visible: boolean; active: boolean;
+  seeking_replacement: boolean; seeking_additional_help: boolean; publish_vacancy: boolean;
+  occupancy: "vacant" | "filled" | "shared"; public_reason: "successor" | "vacant" | "extra_help" | null;
+  recruiting_contact: string | null; recruiting_contact_person_id: string | null;
+  holders: { id: string | null; person_id: string; name: string; capacity: string; start_date: string | null }[];
+  history: { id: string; name: string; capacity: string; start_date: string; end_date: string }[] | null;
+  interests: { id: string; person_id: string | null; application_id: string | null; name: string | null; stage: string; note: string | null; updated_at: string }[] | null;
+  my_interest: string | null;
+};
+export async function loadPositions(): Promise<Position[]> {
+  const sb = await createClient();
+  const { data, error } = await sb.rpc("hub_positions");
+  if (error) throw new Error("Couldn't load club roles.");
+  return (data ?? []) as Position[];
 }

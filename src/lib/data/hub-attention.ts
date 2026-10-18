@@ -1,9 +1,10 @@
 import "server-only";
+import { createClient } from "@/lib/supabase/server";
 
-/**
- * Counts for "Needs attention" that belong to later stages (applications, club roles). Returns zeros
- * until those features exist; replaced in Stage 5/6 by real counts.
- */
+/** Counts for "Needs attention" that come from club roles and (Stage 6) applications. */
 export async function loadAttention(): Promise<{ new_applications: number; roles_recruiting: number }> {
-  return { new_applications: 0, roles_recruiting: 0 };
+  const sb = await createClient();
+  const { data } = await sb.from("club_positions").select("seeking_replacement, seeking_additional_help").eq("active", true);
+  const recruiting = (data ?? []).filter((p) => p.seeking_replacement || p.seeking_additional_help).length;
+  return { new_applications: 0, roles_recruiting: recruiting };
 }

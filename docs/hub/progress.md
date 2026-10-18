@@ -47,3 +47,12 @@ See `stage-0-audit.md`.
 - Overview counts each person once per event (confirmed > expected > available > awaiting) and once per day across events and cover.
 **Screens** `/manage/venue-cover` (preview of overlapping events and clashes, request or record, change times, record answers, cancel), shared-cover band on the calendar and overview (“Also supports N overlapping events”), `/manage` overview (Needs attention + this week by day and venue, honest count badges).
 **Tests** `tests/db/hub-venue-cover.db.test.ts` 16 (C26–C31, H32, scope, rollback), `tests/e2e/hub-stage4.mts` 18/18; Stages 1–3 E2E re-run green.
+
+## Stage 5 — Club roles, recruiting and succession ✅
+**Migration** `20261019000500_hub_positions.sql` (rollback tested).
+- `club_positions`, `position_holders` (many-to-many, start/end dates, history never deleted), `position_interests` (interested → contacted → discussion → shadowing → handover; “taken on” is an internal note only).
+- Occupancy is derived (vacant / filled / shared); recruiting flags are independent, so Filled + Seeking replacement, Filled + Extra help, both, and Vacant + Advertised all work.
+- `public_opportunities()` — callable only by the server's secret key; returns public-safe copy for roles that are allowed public **and** actually recruiting. No names, contacts, notes or interest data. `anon` still executes nothing.
+- “Add the usual roles” creates the eight roles as empty drafts (no holders, nothing advertised) — an explicit admin action.
+**Screens** `/manage/club-roles` (+ `[id]`: recruiting, holders and hand-over, history, interest pipeline, details), `/opportunities` for members (I'm interested), public `/volunteer` and `/privacy` (draft notice, versioned); club roles shown in the directory.
+**Tests** `tests/db/hub-positions.db.test.ts` 14 (C33–C35, interest, permissions, rollback), `tests/e2e/hub-stage5.mts` 17/17 (incl. C05 public redirects).

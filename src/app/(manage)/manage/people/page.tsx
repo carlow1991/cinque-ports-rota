@@ -24,7 +24,7 @@ async function ManagePeople({ searchParams }: PageProps<"/manage/people">) {
   const portal = typeof sp.portal === "string" ? sp.portal : "";
   const [people, teams] = await Promise.all([loadDirectory(), loadTeams()]);
   const list = people.filter((p) =>
-    (!q || p.name.toLowerCase().includes(q) || (p.email ?? "").toLowerCase().includes(q) || p.teams.some((t) => t.team.toLowerCase().includes(q) || t.role.toLowerCase().includes(q))) &&
+    (!q || p.name.toLowerCase().includes(q) || (p.email ?? "").toLowerCase().includes(q) || p.teams.some((t) => t.team.toLowerCase().includes(q) || t.role.toLowerCase().includes(q)) || p.positions.some((x) => x.toLowerCase().includes(q))) &&
     (!team || p.teams.some((t) => t.team === team)) &&
     (!kind || p.involvement.includes(kind)) &&
     (!portal || (portal === "invited" ? p.portal_status !== "not_invited" : p.portal_status === "not_invited")));
@@ -64,6 +64,7 @@ async function ManagePeople({ searchParams }: PageProps<"/manage/people">) {
                   {p.is_under_18 ? <Badge tone="warn">Under 18</Badge> : null}
                 </div>
                 <p className="text-sm text-ink-muted">{p.involvement.map((i) => labelFor(INVOLVEMENT, i)).join(" · ") || "—"}</p>
+                {p.positions.length ? <p className="text-sm font-medium text-club">{p.positions.join(" · ")}</p> : null}
                 {p.teams.length ? <p className="text-sm">{p.teams.map((t) => `${t.role}, ${t.team}`).join(" · ")}</p> : null}
                 <p className="text-sm break-all">{[p.email, formatPhone(p.phone)].filter(Boolean).join(" · ")}</p>
                 {isAdmin && p.routine_requests_enabled ? <p className="text-xs text-ink-muted">Suggested for availability requests</p> : null}
