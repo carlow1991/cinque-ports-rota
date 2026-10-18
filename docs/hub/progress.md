@@ -56,3 +56,13 @@ See `stage-0-audit.md`.
 - “Add the usual roles” creates the eight roles as empty drafts (no holders, nothing advertised) — an explicit admin action.
 **Screens** `/manage/club-roles` (+ `[id]`: recruiting, holders and hand-over, history, interest pipeline, details), `/opportunities` for members (I'm interested), public `/volunteer` and `/privacy` (draft notice, versioned); club roles shown in the directory.
 **Tests** `tests/db/hub-positions.db.test.ts` 14 (C33–C35, interest, permissions, rollback), `tests/e2e/hub-stage5.mts` 17/17 (incl. C05 public redirects).
+
+## Stage 6 — Public application and review inbox ✅
+**Migration** `20261019000600_hub_applications.sql` (rollback tested; export applications first).
+- `volunteer_applications` (admin-only), `application_role_suggestions`, `hub_rate_events`; `club_settings.contact_email / applications_open / application_retention_months`.
+- `public_submit_application()` — secret key only; validates everything again, refuses under-18s, rate-limits (5/hour per hashed client, 3/day per contact), flags possible duplicates (email/phone vs people and applications) without merging, records role interest only for publicly advertised roles, computes explained suggestions, and returns only `{received: true}`. Answers are kept out of the audit log.
+- Review: stages new → reviewing → contacted → trial → accepted into pool → closed, follow-up date, notes, link to an existing person (never overwrites them), add to directory (copies preferences; no login, no invite), note interest in a role, delete (an audit line without contents remains). Retention review date set only when the club configures a period.
+**Endpoint** `POST /api/public/volunteer-applications`: same-origin only, JSON, size-capped, honeypot and minimum fill time (bots get the same generic success; nothing saved), never logs answers.
+**Screens** `/volunteer/apply` (3 steps, in-memory with Back, “I'm not sure” option, under-18 route to contact the club with a parent/carer, privacy acknowledgement + separate optional news opt-in, agreed thank-you text), `/manage/applications` (+ `[id]`: answers, side-by-side duplicate check, suggestions with reasons and checks flag, review, add/link, delete).
+**Tests** `tests/db/hub-applications.db.test.ts` 22 (C36–C42, H43, H44, rollback), `tests/unit/application-form.test.ts`, `tests/e2e/hub-stage6.mts` 25/25.
+**Needs the club** contact address for the under-18 route (`CLUB_CONTACT_EMAIL`), privacy notice approval, retention period.

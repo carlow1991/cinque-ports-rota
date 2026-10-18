@@ -33,7 +33,10 @@ async function ManagePeople({ searchParams }: PageProps<"/manage/people">) {
     <section aria-labelledby="h" className="space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <h1 id="h" className="text-2xl font-bold text-club">People</h1>
-        {isAdmin ? <LinkButton href="/manage/people/new">+ Person</LinkButton> : null}
+        <div className="flex gap-2">
+          {isAdmin ? <LinkButton href="/manage/applications" variant="secondary">Applicants</LinkButton> : null}
+          {isAdmin ? <LinkButton href="/manage/people/new">+ Person</LinkButton> : null}
+        </div>
       </div>
       <form className="grid gap-3 rounded-xl border border-line bg-white p-3 sm:grid-cols-4" role="search">
         <Field label="Search"><Input name="q" defaultValue={q} placeholder="Name, team or role" /></Field>

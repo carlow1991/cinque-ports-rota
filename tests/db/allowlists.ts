@@ -35,6 +35,9 @@ export const HUB_SIGNED_IN_FUNCTIONS = [
   // Stage 5
   "hub_save_position", "hub_set_recruiting", "hub_add_holder", "hub_end_holder", "hub_set_interest", "hub_register_interest",
   "hub_add_suggested_positions", "hub_positions",
+  // Stage 6
+  "hub_update_application", "hub_link_application", "hub_create_person_from_application", "hub_match_application_position",
+  "hub_recompute_suggestions", "hub_delete_application", "hub_application_counts",
 ];
 
 export const SIGNED_IN_FUNCTIONS = [...new Set([...LEGACY_SIGNED_IN_FUNCTIONS, ...HUB_SIGNED_IN_FUNCTIONS])].sort();
@@ -42,7 +45,7 @@ export const SIGNED_IN_FUNCTIONS = [...new Set([...LEGACY_SIGNED_IN_FUNCTIONS, .
 /** The secret key (server only): email worker, first-admin bootstrap, and the two public-page functions. */
 export const SERVICE_ROLE_FUNCTIONS = [
   "admin_bootstrap_volunteer", "outbox_claim", "outbox_complete", "outbox_enqueue_reminders", "outbox_suppress",
-  "hub_bootstrap_person", "public_opportunities",
+  "hub_bootstrap_person", "public_opportunities", "public_submit_application",
 ].sort();
 
 /** Tables signed-in users can read (RLS narrows rows). No Hub table is directly writable. */
@@ -50,4 +53,5 @@ export const HUB_SELECT_ONLY_TABLES = [
   "people", "user_accounts", "coordinator_scopes", "team_people", "volunteer_preferences", "usual_availability",
   "availability_requests", "event_availability", "hub_assignments", "event_participation_exceptions",
   "club_positions", "position_holders", "position_interests",
+  "volunteer_applications", "application_role_suggestions",
 ];
