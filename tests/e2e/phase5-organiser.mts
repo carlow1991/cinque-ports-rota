@@ -123,7 +123,7 @@ check("event completed after its end", (await q<{ status: string }>("select stat
 
 // 4. Postpone → volunteers asked to reconfirm → republish → volunteer reconfirms.
 const wd = await eventId("E2E Withdrawable duty event");
-await open(A, `/manage/events/${wd}`, "E2E Withdrawable duty event");
+await open(A, `/manage/events/${wd}?tab=changes`, "E2E Withdrawable duty event"); // postpone/cancel live on the Changes tab
 await A.locator("form", { has: A.getByRole("button", { name: "Postpone event" }) }).locator("input[name=reason]").fill("Pitch unplayable");
 await A.getByRole("button", { name: "Postpone event" }).click();
 await A.getByText("Event postponed").waitFor();
@@ -132,6 +132,7 @@ check("postpone → event postponed and the volunteer reset to 'invited'",
   (await statusOf("E2E Withdrawable duty event", "vol@test.local")).status === "invited");
 const [msg] = await q<{ n: number }>("select count(*)::int as n from notification_outbox where kind = 'event_postponed'");
 check("postponement queued a message to the volunteer", msg.n >= 1);
+await open(A, `/manage/events/${wd}`, "E2E Withdrawable duty event");
 await A.getByRole("button", { name: "Publish event" }).click();
 await A.waitForURL(/published=1/);
 await open(V, "/my-duties?tab=invited", "My Duties");
@@ -142,7 +143,7 @@ check("volunteer reconfirms → confirmed again", (await statusOf("E2E Withdrawa
 
 // 5. Cancel an event → volunteer sees it cancelled.
 const inv = await eventId("E2E Invitation event");
-await open(A, `/manage/events/${inv}`, "E2E Invitation event");
+await open(A, `/manage/events/${inv}?tab=changes`, "E2E Invitation event");
 await A.locator("form", { has: A.getByRole("button", { name: "Cancel event" }) }).locator("input[name=reason]").fill("Hall unavailable");
 await A.getByRole("button", { name: "Cancel event" }).click();
 await A.getByText("Event cancelled").waitFor();

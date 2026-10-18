@@ -341,6 +341,36 @@ describe("time changes", () => {
     expect(Math.abs(s.ends_at.getTime() - (inHours(1203).getTime() + 45 * 60000))).toBeLessThan(60_000);
   });
 
+  it("preview_reschedule shows exactly what reschedule_event then does (template + hand-made), and changes nothing itself", async () => {
+    const v = await person(db);
+    const start = inHours(1250), end = inHours(1252);
+    const event = await makeEvent(db, { venue: mw, start, end });
+    const [tmpl] = await rows<{ id: string }>(db.admin,
+      "insert into duty_templates (code, name, event_type) values ('TPREV', 'Preview', 'fixture') returning id");
+    const [item] = await rows<{ id: string }>(db.admin,
+      `insert into duty_template_items (template_id, duty_type_id, start_anchor, start_offset_minutes, end_anchor, end_offset_minutes)
+       values ($1, (select id from duty_types where code = 'cleaning'), 'event_end', 0, 'event_end', 30) returning id`, [tmpl.id]);
+    await db.admin.query(`insert into event_shifts (event_id, duty_type_id, starts_at, ends_at, required_count, source_template_item_id)
+       values ($1, (select id from duty_types where code = 'cleaning'), $2, $3, 1, $4)`, [event, end, new Date(end.getTime() + 30 * 60000), item.id]);
+    const hand = await makeShift(db, { event, duty: "pitch_setup", start: inHours(1249), end: start });
+    await rpc(db, v, "self_signup", [hand]);
+    const [ns, ne] = [inHours(1273), inHours(1276)];   // a day later, and an hour longer
+    type P = { shift_id: string; new_starts_at: Date; new_ends_at: Date; from_template: boolean; people_to_reconfirm: number };
+    const preview = await db.asUser(coordMW.uid, (c) => rows<P>(c, "select * from public.preview_reschedule($1, $2, $3)", [event, ns, ne]));
+    expect(preview).toHaveLength(2);
+    expect(preview.find((p) => p.shift_id === hand)).toMatchObject({ from_template: false, people_to_reconfirm: 1 });
+    const [unchanged] = await rows<{ starts_at: Date }>(db.admin, "select starts_at from events where id = $1", [event]);
+    expect(unchanged.starts_at.getTime()).toBe(start.getTime());                       // preview saved nothing
+    await rpc(db, coordMW, "reschedule_event", [event, ns, ne]);
+    const after = await rows<{ id: string; starts_at: Date; ends_at: Date }>(db.admin, "select id, starts_at, ends_at from event_shifts where event_id = $1", [event]);
+    for (const p of preview) {
+      const a = after.find((x) => x.id === p.shift_id)!;
+      expect([a.starts_at.getTime(), a.ends_at.getTime()]).toEqual([new Date(p.new_starts_at).getTime(), new Date(p.new_ends_at).getTime()]);
+    }
+    // Other venue's coordinator, or a volunteer, sees nothing.
+    expect(await db.asUser(v.uid, (c) => rows(c, "select * from public.preview_reschedule($1, $2, $3)", [event, ns, ne]))).toEqual([]);
+  });
+
   it("update_shift: lowering headcount below committed volunteers is refused; a time change resets", async () => {
     const [v, w] = [await person(db), await person(db)];
     const { shift } = await openShift({ required: 2, startH: 1300 });

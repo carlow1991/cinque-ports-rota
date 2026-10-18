@@ -157,7 +157,8 @@ export async function rescheduleAction(_prev: ActionResult | null, fd: FormData)
   refresh();
   kickOutbox();
   const n = (data as { assignments_reset: number }).assignments_reset;
-  return { ok: true, message: n ? `Times changed. ${n} volunteer(s) have been asked to reconfirm.` : "Times changed." };
+  // Leave the review step: the event page shows what was saved and how many must reconfirm.
+  redirect(`/manage/events/${id.data}?tab=changes&saved=${n}`);
 }
 
 // ---------------------------------------------------------------------------

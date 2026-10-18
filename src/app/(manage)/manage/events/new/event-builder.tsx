@@ -34,7 +34,15 @@ export function EventBuilder({ venues, teams, templates, coverageEvents, today }
   const [enabled, setEnabled] = useState<Set<string>>(() => new Set(template?.items.filter((i) => i.enabledByDefault).map((i) => i.id)));
   const [counts, setCounts] = useState<Record<string, number>>({});
 
-  function chooseTemplate(id: string) {
+  const [templateNote, setTemplateNote] = useState("");
+  // Have they changed the template's suggested duties or numbers? Then switching template loses work.
+  const adjusted = Boolean(template) && (Object.keys(counts).length > 0 ||
+    template!.items.some((i) => enabled.has(i.id) !== i.enabledByDefault));
+
+  function chooseTemplate(id: string, opts: { force?: boolean } = {}) {
+    if (!opts.force && adjusted && id !== templateId &&
+        !window.confirm("Switch template? The changes you made to the duties below will be lost.")) return;
+    setTemplateNote("");
     setTemplateId(id);
     const t = templates.find((x) => x.id === id);
     setEnabled(new Set(t?.items.filter((i) => i.enabledByDefault).map((i) => i.id)));
@@ -43,7 +51,11 @@ export function EventBuilder({ venues, teams, templates, coverageEvents, today }
   function chooseVenue(id: string) {
     setVenueId(id);
     setCoverId("");
-    if (template?.venue_id && template.venue_id !== id) chooseTemplate("");
+    if (template?.venue_id && template.venue_id !== id) {
+      const vName = venues.find((v) => v.id === template.venue_id)?.name ?? "another venue";
+      chooseTemplate("", { force: true });
+      setTemplateNote(`“${template.code}: ${template.name}” is only for ${vName}, so it no longer applies. Choose a template for this venue, or add duties by hand after creating the draft.`);
+    }
   }
 
   const w = londonWindow(date, start, end);
@@ -52,6 +64,11 @@ export function EventBuilder({ venues, teams, templates, coverageEvents, today }
     ? expandTemplate({ startsAt: w.startsAt, endsAt: w.endsAt, linkedToVenueCover: Boolean(coverId) }, template.items, { enabled, counts })
     : null;
   const leadPlanned = preview?.shifts.some((s) => s.dutyCode === "site_lead");
+  // Actual clock times for every template duty at the chosen date/time (shown next to each one).
+  const timesByItem = new Map(template && w.ok
+    ? expandTemplate({ startsAt: w.startsAt, endsAt: w.endsAt, linkedToVenueCover: false }, template.items,
+        { enabled: new Set(template.items.map((i) => i.id)), counts }).shifts.map((x) => [x.itemId, formatRange(x.startsAt, x.endsAt)])
+    : []);
   const needsDecision = siteResp && !coverId && !leadPlanned;
 
   return (
@@ -71,7 +88,7 @@ export function EventBuilder({ venues, teams, templates, coverageEvents, today }
           <Field label="Title" hint='e.g. "First Team v Hythe Town" or "Freemens Way Saturday operations"'>
             <Input name="title" required maxLength={120} />
           </Field>
-          <Field label="Team (optional)">
+          <Field label="Team (optional)" hint={teams.some((t) => t.active) ? undefined : "No teams are set up yet. An administrator can add the club's teams in Setup → Settings."}>
             <Select name="team_id" defaultValue="">
               <option value="">None</option>
               {teams.filter((t) => t.active).map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
@@ -89,14 +106,14 @@ export function EventBuilder({ venues, teams, templates, coverageEvents, today }
       <Card title="2. When (UK time)">
         <div className="grid gap-3 sm:grid-cols-4">
           <Field label="Date"><Input type="date" name="date" value={date} onChange={(e) => setDate(e.target.value)} required /></Field>
-          <Field label={type === "fixture" ? "Start (normally kick-off)" : "Start"}>
+          <Field label="Event start" hint="When the event itself starts. Duties before and after are timed from this and the end.">
             <Input type="time" name="start" value={start} onChange={(e) => setStart(e.target.value)} required />
           </Field>
-          <Field label="Planned end" hint="Set a realistic end. Duties before and after are added by the template.">
+          <Field label="Event end" hint="A realistic finish time. Clean-up duties are timed from this.">
             <Input type="time" name="end" value={end} onChange={(e) => setEnd(e.target.value)} required />
           </Field>
           {type === "fixture" ? (
-            <Field label="Kick-off (optional)" hint="Leave blank if the same as start."><Input type="time" name="kickoff" /></Field>
+            <Field label="Kick-off (optional)" hint="For information only. It doesn't move any duty times."><Input type="time" name="kickoff" /></Field>
           ) : null}
         </div>
         <div className="mt-2 text-sm" aria-live="polite">
@@ -140,6 +157,7 @@ export function EventBuilder({ venues, teams, templates, coverageEvents, today }
             {usable.map((t) => <option key={t.id} value={t.id}>{t.code}: {t.name}{t.event_type === type ? "" : ` (${EVENT_TYPE_LABEL[t.event_type]})`}</option>)}
           </Select>
         </Field>
+        {templateNote ? <p role="status" className="mt-2 text-sm font-medium text-amber-800">{templateNote}</p> : null}
         {template?.description ? <p className="mt-2 text-sm text-ink-muted">{template.description}</p> : null}
 
         {template ? (
@@ -154,7 +172,11 @@ export function EventBuilder({ venues, teams, templates, coverageEvents, today }
                     <Checkbox name="enabled" value={i.id} checked={on}
                       onChange={(e) => setEnabled((s) => { const n = new Set(s); if (e.target.checked) n.add(i.id); else n.delete(i.id); return n; })}
                       label={<>{i.dutyName}{i.enabledByDefault ? "" : <span className="ml-1 text-xs font-normal text-ink-muted">(optional)</span>}</>}
-                      hint={`${describeOffset(i.startAnchor, i.startOffsetMinutes)} → ${describeOffset(i.endAnchor, i.endOffsetMinutes)}${i.whenToEnable ? `. ${i.whenToEnable}` : ""}`} />
+                      hint={<>
+                        {timesByItem.get(i.id) ? <strong className="font-mono tabular-nums">{timesByItem.get(i.id)} </strong> : null}
+                        <span>({describeOffset(i.startAnchor, i.startOffsetMinutes)} → {describeOffset(i.endAnchor, i.endOffsetMinutes)})</span>
+                        {i.whenToEnable ? <span className="block">{i.whenToEnable}</span> : null}
+                      </>} />
                     <label className="flex items-center gap-2 text-sm">
                       <span>People</span>
                       <input type="number" name={`count_${i.id}`} min={1} max={50} inputMode="numeric" disabled={!on}

@@ -6,7 +6,7 @@ import { Badge, Card, EVENT_TYPE_LABEL, Notice } from "@/components/ui";
 import { MANAGER_ROLES } from "@/lib/auth/access";
 import { requireRole } from "@/lib/auth/dal";
 import { loadTemplates, loadVenues } from "@/lib/data/manage";
-import { describeOffset } from "@/lib/domain/templates";
+import { describeTiming } from "@/lib/domain/template-timing";
 import { SetupTabs } from "@/components/manage-nav";
 
 export const metadata: Metadata = { title: "Templates" };
@@ -40,6 +40,8 @@ async function Templates() {
             actions={me.role === "admin" ? <Link className="text-sm font-semibold text-club-blue underline" href={`/manage/templates/${t.id}`}>Edit</Link> : null}>
             <p className="text-sm text-ink-muted">{EVENT_TYPE_LABEL[t.event_type]} · {venueName(t.venue_id)} · default {core.length} row(s), {core.reduce((n, i) => n + i.requiredCount, 0)} place(s)</p>
             {t.description ? <p className="mt-1 text-sm">{t.description}</p> : null}
+            <details className="mt-2">
+              <summary className="cursor-pointer text-sm font-semibold text-club-blue">Show the {t.items.length} duties</summary>
             <ul className="mt-2 divide-y divide-line text-sm">
               {t.items.map((i) => (
                 <li key={i.id} className="flex flex-wrap justify-between gap-2 py-1.5">
@@ -49,10 +51,11 @@ async function Templates() {
                     {i.responsibilities.length ? <span className="block text-xs text-ink-muted">Includes {i.responsibilities.map((r) => r.name).join(", ")}</span> : null}
                     {i.suppressedByLinkedCover ? <span className="block text-xs text-ink-muted">Not created when linked to venue-wide cover</span> : null}
                   </span>
-                  <span className="text-ink-muted">{describeOffset(i.startAnchor, i.startOffsetMinutes)} → {describeOffset(i.endAnchor, i.endOffsetMinutes)}</span>
+                  <span className="text-ink-muted">From {describeTiming(i.startAnchor, i.startOffsetMinutes)} until {describeTiming(i.endAnchor, i.endOffsetMinutes)}</span>
                 </li>
               ))}
             </ul>
+            </details>
           </Card>
         );
       })}

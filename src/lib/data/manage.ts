@@ -275,6 +275,19 @@ export async function loadShiftForAssign(shiftId: string) {
   };
 }
 
+export type ReschedulePreviewRow = {
+  shift_id: string; duty_name: string; old_starts_at: string; old_ends_at: string;
+  new_starts_at: string; new_ends_at: string; from_template: boolean; people_to_reconfirm: number;
+};
+
+/** What moving an event would do to each duty (read-only; the same calculation the move itself uses). */
+export async function loadReschedulePreview(eventId: string, startsAt: Date, endsAt: Date): Promise<ReschedulePreviewRow[]> {
+  const sb = await createClient();
+  return must<ReschedulePreviewRow[]>(await sb.rpc("preview_reschedule", {
+    p_event_id: eventId, p_starts_at: startsAt.toISOString(), p_ends_at: endsAt.toISOString(),
+  }), "the preview");
+}
+
 /** People on an event's duties plus who provides site-lead cover, read at one request time. */
 export async function loadEventPeople(eventId: string) {
   const [rows, leads] = await Promise.all([loadRoster({ eventId }), loadCoverLeads(eventId)]);

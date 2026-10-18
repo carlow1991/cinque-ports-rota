@@ -32,8 +32,9 @@ export function notifyOutcome(state: MessagingState, who: string, plural = false
 
 /** Clause for confirm prompts describing what WILL happen to people. */
 export function notifyFuture(state: MessagingState, who: string): string {
+  const object = who === "they" ? "them" : who; // "an email to them", never "to they"
   return state === "on" ? `${who} will be emailed`
-    : state === "limited" ? `an email to ${who} will be queued (pilot mode: approved addresses only)`
+    : state === "limited" ? `an email to ${object} will be queued (pilot mode: approved addresses only)`
     : `${who} will not be emailed while email is off, so tell them yourself`;
 }
 

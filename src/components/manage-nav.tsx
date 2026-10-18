@@ -48,6 +48,11 @@ export function ManageNavLinks({ pathname }: { pathname: string | null }) {
 
 type Tab = { key: string; href: string; label: string };
 
+/** Tabs inside a page (each one its own URL, so it can be bookmarked and back/forward works). */
+export function SubTabs(props: { label: string; tabs: Tab[]; current: string }) {
+  return <Tabs {...props} />;
+}
+
 function Tabs({ label, tabs, current }: { label: string; tabs: Tab[]; current: string }) {
   return (
     <nav aria-label={label} className="flex flex-wrap gap-1 border-b border-line">

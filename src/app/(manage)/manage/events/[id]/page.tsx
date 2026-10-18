@@ -7,12 +7,13 @@ import { PageLoading } from "@/components/app-header";
 import { Badge, Card, Checkbox, CoverBadge, DemoBadge, EVENT_TYPE_LABEL, Field, Input, Notice, Select, StatusBadge, Textarea } from "@/components/ui";
 import { MANAGER_ROLES } from "@/lib/auth/access";
 import { requireRole } from "@/lib/auth/dal";
-import { loadCoverageEvents, loadEvent, loadEventPeople, loadLinkedEvents, loadTeams, loadTemplates, loadVenues, type RosterRow, type ShiftView } from "@/lib/data/manage";
+import { SubTabs } from "@/components/manage-nav";
+import { loadCoverageEvents, loadEvent, loadEventPeople, loadLinkedEvents, loadReschedulePreview, loadTeams, loadTemplates, loadVenues, type ReschedulePreviewRow, type RosterRow, type ShiftView } from "@/lib/data/manage";
 import { ShiftPeople } from "./shift-people";
 import { COVER_EXPLANATION, parseRanges } from "@/lib/domain/coverage";
 import { describeOffset } from "@/lib/domain/templates";
-import { capitalise, messagingState, notifyFuture } from "@/lib/email/state";
-import { formatLongDay, formatRange, formatTime, londonParts, zoneLabel } from "@/lib/time/london";
+import { capitalise, messagingState, notifyFuture, notifyOutcome } from "@/lib/email/state";
+import { formatDay, formatLongDay, formatRange, formatTime, londonParts, londonWindow, zoneLabel } from "@/lib/time/london";
 import {
   addShiftAction, applyTemplateAction, cancelEventAction, cancelShiftAction, completeEventAction, linkCoverAction,
   postponeAction, publishEventAction, rescheduleAction, setSiteCoverAction, updateDetailsAction, updateShiftAction,
@@ -64,6 +65,18 @@ async function EventDetail({ params, searchParams }: { params: PageProps<"/manag
   const generated = new Set(shifts.map((s) => s.source_template_item_id).filter(Boolean) as string[]);
   const usableTemplates = templates.filter((t) => !t.venue_id || t.venue_id === e.venue_id);
   const totals = shifts.reduce((a, s) => ({ slots: a.slots + s.required_count, conf: a.conf + s.confirmed, pend: a.pend + s.pending, open: a.open + s.open }), { slots: 0, conf: 0, pend: 0, open: 0 });
+  const dutyCodesOnEvent = new Set(shifts.map((x) => x.duty_code));
+  const tab = sp.tab === "details" || sp.tab === "changes" ? sp.tab : "duties";
+  const base = `/manage/events/${e.id}`;
+  // Who a postponement or cancellation would affect: everyone invited, awaiting approval or confirmed.
+  const ACTIVE = new Set(["invited", "pending_approval", "confirmed"]);
+  const committed = people.rows.filter((r) => r.volunteer_id && r.status && ACTIVE.has(r.status));
+  const affectedPeople = new Set(committed.map((r) => r.volunteer_id)).size;
+  const affectedDuties = new Set(committed.map((r) => r.shift_id)).size;
+  // Review step for a time change: ?tab=changes&review=1&date=…&start=…&end=…
+  const str = (v: unknown) => (typeof v === "string" ? v : "");
+  const proposal = tab === "changes" && sp.review === "1" ? londonWindow(str(sp.date), str(sp.start), str(sp.end)) : null;
+  const preview = proposal?.ok ? await loadReschedulePreview(e.id, proposal.startsAt, proposal.endsAt) : null;
 
   return (
     <article className="space-y-4">
@@ -79,9 +92,15 @@ async function EventDetail({ params, searchParams }: { params: PageProps<"/manag
         </div>
         <h1 className="text-2xl font-bold text-club">{e.title}</h1>
         <p className="text-ink">
-          {venue?.name} · {formatLongDay(starts)} · {formatRange(starts, ends)} {zoneLabel(starts)}
-          {e.kickoff_at ? ` · kick-off ${formatTime(new Date(e.kickoff_at))}` : ""}
+          {venue?.name} · {formatLongDay(starts)} · <span className="text-ink-muted">Event</span> {formatRange(starts, ends)} {zoneLabel(starts)}
+          {e.kickoff_at ? <> · <span className="text-ink-muted">Kick-off</span> {formatTime(new Date(e.kickoff_at))}</> : null}
         </p>
+        {shifts.length ? (
+          <p className="text-sm">
+            <strong>Staffing:</strong> {totals.conf} of {totals.slots} places confirmed{totals.pend ? ` · ${totals.pend} awaiting approval` : ""}
+            {totals.open ? <> · <strong className="text-danger">{totals.open} open</strong></> : " · all filled"}
+          </p>
+        ) : <p className="text-sm text-ink-muted">No duties yet.</p>}
         <p className="text-sm text-ink-muted">
           {[team?.name, e.opponent ? `v ${e.opponent}` : null, e.competition].filter(Boolean).join(" · ")}
         </p>
@@ -97,6 +116,13 @@ async function EventDetail({ params, searchParams }: { params: PageProps<"/manag
           </Notice>
         ) : null}
       </header>
+
+      <SubTabs label="Event sections" current={tab} tabs={[
+        { key: "duties", href: base, label: "Duties" },
+        ...(open ? [{ key: "details", href: `${base}?tab=details`, label: "Details" }, { key: "changes", href: `${base}?tab=changes`, label: "Changes" }] : []),
+      ]} />
+
+      {tab === "duties" ? (<>
 
       {open && (e.status === "draft" || e.status === "postponed") ? (
         <Card title="Publish">
@@ -213,28 +239,11 @@ async function EventDetail({ params, searchParams }: { params: PageProps<"/manag
         </Card>
       ) : null}
 
-      {open && !ended ? (
-        <Card title="Postpone or cancel">
-          <div className="grid gap-4 sm:grid-cols-2">
-            {e.status === "published" ? (
-              <ActionForm action={postponeAction} submitLabel="Postpone event" variant="secondary"
-                confirm={`Postpone? Everyone on a duty must reconfirm once you publish the new date; ${notifyFuture(mail, "they")}.`}>
-                <input type="hidden" name="event_id" value={e.id} />
-                <Field label="Reason for postponing (volunteers will see it)"><Input name="reason" required maxLength={500} /></Field>
-              </ActionForm>
-            ) : null}
-            <ActionForm action={cancelEventAction} submitLabel="Cancel event" variant="danger"
-              confirm={`Cancel this event? All duties are cancelled and reminders stop; ${notifyFuture(mail, "volunteers")}. This can't be undone.`}>
-              <input type="hidden" name="event_id" value={e.id} />
-              <Field label="Reason for cancelling (volunteers will see it)"><Input name="reason" required maxLength={500} /></Field>
-            </ActionForm>
-          </div>
-        </Card>
-      ) : null}
-
       {open ? (
-        <>
-          <Card title="Add duties from a template">
+        <details className="rounded-xl border border-line bg-white p-4" open={shifts.length === 0}>
+          <summary className="cursor-pointer text-lg font-semibold text-club">Add duties</summary>
+          <div className="mt-3 space-y-4">
+<Card title="From a template">
             <div className="space-y-2">
               {usableTemplates.map((t) => {
                 const remaining = t.items.filter((i) => !generated.has(i.id));
@@ -248,7 +257,7 @@ async function EventDetail({ params, searchParams }: { params: PageProps<"/manag
                       {remaining.map((i) => (
                         <div key={i.id} className="flex flex-wrap items-center justify-between gap-2">
                           <Checkbox name="enabled" value={i.id} defaultChecked={false} label={i.dutyName}
-                            hint={`${describeOffset(i.startAnchor, i.startOffsetMinutes)} → ${describeOffset(i.endAnchor, i.endOffsetMinutes)}${i.suppressedByLinkedCover && e.coverage_event_id ? " · skipped while linked to venue cover" : ""}`} />
+                            hint={`${describeOffset(i.startAnchor, i.startOffsetMinutes)} → ${describeOffset(i.endAnchor, i.endOffsetMinutes)}${i.suppressedByLinkedCover && e.coverage_event_id ? " · skipped while linked to venue cover" : ""}${dutyCodesOnEvent.has(i.dutyCode) ? ` · ⚠ this event already has a ${i.dutyName} duty; ticking adds another` : ""}`} />
                           <label className="text-sm">People <input type="number" name={`count_${i.id}`} min={1} max={50} defaultValue={i.requiredCount} className="w-16 rounded-lg border border-line px-2 py-1 text-center" /></label>
                         </div>
                       ))}
@@ -258,8 +267,7 @@ async function EventDetail({ params, searchParams }: { params: PageProps<"/manag
               })}
             </div>
           </Card>
-
-          <Card title="Add a duty by hand">
+<Card title="By hand">
             <ActionForm action={addShiftAction} submitLabel="Add duty">
               <input type="hidden" name="event_id" value={e.id} />
               <div className="grid gap-3 sm:grid-cols-2">
@@ -286,21 +294,98 @@ async function EventDetail({ params, searchParams }: { params: PageProps<"/manag
               <Field label="Instructions (optional)"><Textarea name="instructions" maxLength={2000} /></Field>
             </ActionForm>
           </Card>
+          </div>
+        </details>
+      ) : null}
+      </>) : null}
 
-          <Card title="Change date or times">
-            <p className="mb-2 text-sm">Moving an event moves its duties too (template duties stay anchored to the start/end) and asks everyone already committed to reconfirm.</p>
-            <ActionForm action={rescheduleAction} submitLabel="Change times" variant="secondary" confirm="Change the times? Everyone already on a duty will be asked to reconfirm.">
-              <input type="hidden" name="event_id" value={e.id} />
-              <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-                <Field label="Date"><Input type="date" name="date" defaultValue={sp0.dateKey} /></Field>
-                <Field label="Start"><Input type="time" name="start" defaultValue={sp0.time} /></Field>
-                <Field label="End" hint="Earlier than start = next day"><Input type="time" name="end" defaultValue={ep0.time} /></Field>
+      {tab === "changes" && open ? (<>
+      {!ended ? (
+        <Card title="Change date or times">
+          {typeof sp.saved === "string" && /^\d+$/.test(sp.saved) ? (
+            <div className="space-y-2">
+              <Notice tone="good" title="New times saved">
+                The event now runs {formatLongDay(starts)}, {formatRange(starts, ends)} {zoneLabel(starts)}.{" "}
+                {Number(sp.saved)
+                  ? <>{sp.saved} duty {Number(sp.saved) === 1 ? "place needs" : "places need"} reconfirming; the people concerned are listed under Events → Requests. {notifyOutcome(mail, "them", true)}</>
+                  : "Nobody needed to reconfirm."}
+              </Notice>
+              <p className="flex flex-wrap gap-4 text-sm">
+                <Link href={base} className="text-club-blue underline">Back to duties</Link>
+                <Link href={`${base}?tab=changes`} className="text-club-blue underline">Make another change</Link>
+              </p>
+            </div>
+          ) : proposal?.ok && proposal.startsAt.getTime() === starts.getTime() && proposal.endsAt.getTime() === ends.getTime() ? (
+            <p className="text-sm">Those are the current times, so there is nothing to change. <Link href={`${base}?tab=changes`} className="text-club-blue underline">Try again</Link></p>
+          ) : preview && proposal?.ok ? (
+            <div className="space-y-3">
+              <p className="text-sm font-semibold">Check this before saving</p>
+              <dl className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-1 text-sm">
+                <dt className="text-ink-muted">Now</dt><dd>{formatLongDay(starts)}, {formatRange(starts, ends)} {zoneLabel(starts)}</dd>
+                <dt className="text-ink-muted">New</dt><dd className="font-semibold">{formatLongDay(proposal.startsAt)}, {formatRange(proposal.startsAt, proposal.endsAt)} {zoneLabel(proposal.startsAt)}</dd>
+              </dl>
+              <ReviewTable rows={preview} />
+              <p className="text-sm">
+                {reconfirmTotal(preview)
+                  ? <><strong>{affectedPeople} {affectedPeople === 1 ? "person" : "people"}</strong> ({reconfirmTotal(preview)} duty {reconfirmTotal(preview) === 1 ? "place" : "places"}) will need to reconfirm, and won&apos;t count as cover until they do. {capitalise(notifyFuture(mail, "they"))}.</>
+                  : "Nobody is on these duties yet, so nobody needs to reconfirm."}
+              </p>
+              {preview.some((r) => r.from_template) ? (
+                <p className="text-xs text-ink-muted">Duties from a template are re-timed from the template&apos;s <strong>current</strong> settings. Other duties move by the same amount as the start.</p>
+              ) : null}
+              <div className="flex flex-wrap items-center gap-3">
+                <ActionForm action={rescheduleAction} submitLabel="Confirm new times" pendingLabel="Saving…" className="flex flex-wrap items-center gap-3">
+                  <input type="hidden" name="event_id" value={e.id} />
+                  <input type="hidden" name="date" value={str(sp.date)} /><input type="hidden" name="start" value={str(sp.start)} /><input type="hidden" name="end" value={str(sp.end)} />
+                </ActionForm>
+                <Link href={`${base}?tab=changes`} className="text-sm text-club-blue underline">Change again</Link>
               </div>
+            </div>
+          ) : (
+            <form action={base} className="space-y-3">
+              <input type="hidden" name="tab" value="changes" /><input type="hidden" name="review" value="1" />
+              <p className="text-sm">Moving an event moves its duties too. You&apos;ll see exactly what changes, and who has to reconfirm, before anything is saved.</p>
+              {proposal && !proposal.ok ? <p role="alert" className="text-sm font-medium text-danger">{proposal.error}</p> : null}
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+                <Field label="Date"><Input type="date" name="date" defaultValue={str(sp.date) || sp0.dateKey} required /></Field>
+                <Field label="Event start"><Input type="time" name="start" defaultValue={str(sp.start) || sp0.time} required /></Field>
+                <Field label="Event end" hint="Earlier than start = next day"><Input type="time" name="end" defaultValue={str(sp.end) || ep0.time} required /></Field>
+              </div>
+              <button className="min-h-11 rounded-lg border border-club bg-white px-4 font-semibold text-club">Review the change</button>
+            </form>
+          )}
+        </Card>
+      ) : <Card><p className="text-sm text-ink-muted">This event has finished, so it can&apos;t be moved, postponed or cancelled.</p></Card>}
+      {open && !ended ? (
+        <Card title="Postpone or cancel">
+          <p className="mb-3 text-sm">
+            {affectedPeople
+              ? <>This affects <strong>{affectedPeople} {affectedPeople === 1 ? "person" : "people"}</strong> on {affectedDuties} {affectedDuties === 1 ? "duty" : "duties"}. </>
+              : "Nobody is on a duty yet, so nobody else is affected. "}
+            {affectedPeople ? capitalise(notifyFuture(mail, "they")) + "." : null}
+          </p>
+          <div className="grid gap-4 sm:grid-cols-2">
+            {e.status === "published" ? (
+              <ActionForm action={postponeAction} submitLabel="Postpone event" variant="secondary"
+                confirm={`Postpone? Everyone on a duty must reconfirm once you publish the new date; ${notifyFuture(mail, "they")}.`}>
+                <input type="hidden" name="event_id" value={e.id} />
+                <Field label="Reason for postponing (volunteers will see it)"><Input name="reason" required maxLength={500} /></Field>
+              </ActionForm>
+            ) : null}
+            <ActionForm action={cancelEventAction} submitLabel="Cancel event" variant="danger"
+              confirm={`Cancel this event? All duties are cancelled and reminders stop; ${notifyFuture(mail, "volunteers")}. This can't be undone.`}>
+              <input type="hidden" name="event_id" value={e.id} />
+              <Field label="Reason for cancelling (volunteers will see it)"><Input name="reason" required maxLength={500} /></Field>
             </ActionForm>
-          </Card>
+          </div>
+        </Card>
+      ) : null}
 
+      </>) : null}
+
+      {tab === "details" && open ? (
           <Card title="Edit details">
-            <ActionForm action={updateDetailsAction} submitLabel="Save details" variant="secondary">
+            <ActionForm action={updateDetailsAction} submitLabel="Save details" variant="secondary" trackChanges>
               <input type="hidden" name="event_id" value={e.id} />
               <input type="hidden" name="kickoff_date" value={sp0.dateKey} />
               <div className="grid gap-3 sm:grid-cols-2">
@@ -313,14 +398,13 @@ async function EventDetail({ params, searchParams }: { params: PageProps<"/manag
                 </Field>
                 <Field label="Opponent"><Input name="opponent" defaultValue={e.opponent ?? ""} maxLength={120} /></Field>
                 <Field label="Competition"><Input name="competition" defaultValue={e.competition ?? ""} maxLength={120} /></Field>
-                <Field label="Kick-off time (same day)"><Input type="time" name="kickoff" defaultValue={e.kickoff_at ? londonParts(new Date(e.kickoff_at)).time : ""} /></Field>
+                <Field label="Kick-off time (same day)" hint="For information only. Duties are timed from the event start and end, so changing kick-off moves nothing."><Input type="time" name="kickoff" defaultValue={e.kickoff_at ? londonParts(new Date(e.kickoff_at)).time : ""} /></Field>
               </div>
               <Checkbox name="site_responsibility" defaultChecked={e.site_responsibility} label="The club is responsible for opening, running and locking the site" />
               <Field label="Description"><Textarea name="description" defaultValue={e.description ?? ""} maxLength={4000} /></Field>
               <Field label="Instructions for volunteers"><Textarea name="instructions" defaultValue={e.instructions ?? ""} maxLength={4000} /></Field>
             </ActionForm>
           </Card>
-        </>
       ) : null}
     </article>
   );
@@ -331,6 +415,7 @@ function ShiftRow({ s, open, people, started }: { s: ShiftView; open: boolean; p
   const en = new Date(s.ends_at);
   const p0 = londonParts(st);
   const p1 = londonParts(en);
+  const onDuty = people.filter((r) => r.status === "invited" || r.status === "pending_approval" || r.status === "confirmed").length;
   return (
     <li id={`shift-${s.id}`} className="rounded-lg border border-line p-3">
       <div className="flex flex-wrap items-baseline justify-between gap-2">
@@ -353,7 +438,7 @@ function ShiftRow({ s, open, people, started }: { s: ShiftView; open: boolean; p
       {open && !started ? (
         <details className="mt-2">
           <summary className="cursor-pointer text-sm font-semibold text-club">Edit or remove</summary>
-          <ActionForm action={updateShiftAction} submitLabel="Save duty" variant="secondary" className="mt-2 space-y-3"
+          <ActionForm action={updateShiftAction} submitLabel="Save duty" variant="secondary" className="mt-2 space-y-3" trackChanges
             confirm="Save? If you change the times, anyone on this duty will be asked to reconfirm.">
             <input type="hidden" name="shift_id" value={s.id} />
             <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
@@ -369,10 +454,39 @@ function ShiftRow({ s, open, people, started }: { s: ShiftView; open: boolean; p
           <ActionForm action={cancelShiftAction} submitLabel="Remove this duty" variant="danger" className="mt-3 space-y-2"
             confirm={`Remove this duty? ${capitalise(notifyFuture(messagingState(), "anyone on it"))}.`}>
             <input type="hidden" name="shift_id" value={s.id} />
+            <p className="text-sm">
+              {onDuty ? <>{onDuty} {onDuty === 1 ? "person is" : "people are"} on this duty and will be taken off. {capitalise(notifyFuture(messagingState(), "they"))}.</> : "Nobody is on this duty yet."}
+            </p>
             <Field label="Reason (anyone on the duty will see it)"><Input name="reason" required maxLength={500} /></Field>
           </ActionForm>
         </details>
       ) : null}
     </li>
+  );
+}
+
+const reconfirmTotal = (rows: ReschedulePreviewRow[]) => rows.reduce((n, r) => n + r.people_to_reconfirm, 0);
+
+/** Old → new time for each duty, as the database will save it. */
+function ReviewTable({ rows }: { rows: ReschedulePreviewRow[] }) {
+  if (rows.length === 0) return <p className="text-sm text-ink-muted">No duties on this event yet.</p>;
+  return (
+    <table className="w-full text-sm">
+      <caption className="sr-only">Each duty&apos;s current and new times</caption>
+      <thead><tr className="text-left text-xs text-ink-muted"><th scope="col">Duty</th><th scope="col">Now</th><th scope="col">New</th></tr></thead>
+      <tbody className="divide-y divide-line">
+        {rows.map((r) => {
+          const os = new Date(r.old_starts_at), oe = new Date(r.old_ends_at), ns = new Date(r.new_starts_at), ne = new Date(r.new_ends_at);
+          const sameDay = londonParts(os).dateKey === londonParts(ns).dateKey;
+          return (
+            <tr key={r.shift_id}>
+              <th scope="row" className="py-1 pr-2 text-left font-normal">{r.duty_name}{r.people_to_reconfirm ? <span className="block text-xs text-amber-800">{r.people_to_reconfirm} to reconfirm</span> : null}</th>
+              <td className="py-1 pr-2 font-mono tabular-nums">{formatRange(os, oe)}</td>
+              <td className="py-1 font-mono font-semibold tabular-nums">{sameDay ? "" : `${formatDay(ns)} `}{formatRange(ns, ne)}</td>
+            </tr>
+          );
+        })}
+      </tbody>
+    </table>
   );
 }
