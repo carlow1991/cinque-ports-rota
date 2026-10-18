@@ -26,3 +26,15 @@ See `stage-0-audit.md`.
 **Screens** `/calendar` (agenda grouped by day and place, filters, “help wanted” vs “for information”), `/calendar/[id]`, `/manage/events`, `/manage/events/new` (5 fields + one switch, “More options”), `/manage/events/[id]` (edit, publish, cancel, copy to a date as a new draft). The template-driven builder and shift editor are gone from these routes.
 **Tests** `tests/db/hub-calendar.db.test.ts` (C08–C12, C14 history, scope, C51 part, rollback), `tests/unit/hub-calendar.test.ts` (C12 labels, H15 DST, H13 copy), `tests/e2e/hub-stage2.mts` 18/18.
 **Decided** Copies keep UK wall-clock times (09:00 stays 09:00 across a clock change). The autumn repeated hour uses the first (BST) occurrence. Coordinators can add events at their venues or for their teams.
+
+## Stage 3 — Availability, requests and direct invitations ✅
+**Migration** `20261019000300_hub_availability.sql` (rollback tested; export commitments first).
+- `availability_requests` (who was deliberately asked), `event_availability` (one current Yes/No per person per event; whole event or a window; changes audited), `hub_assignments` (event **or** venue scope; pending → confirmed/declined/cancelled; needs_reconfirmation after a material change), `event_participation_exceptions` (one-event override of “expected by role”).
+- Confirmations must say who confirmed (`self` or `admin_recorded` + organiser) — enforced by constraints.
+- Double clicks can't duplicate requests or invitations (unique indexes + idempotent functions).
+- Expected by role is derived from team roles (with effective dates) — never stored as confirmed; per-event absence override.
+- Material change → confirmed people flagged to reconfirm; cancelled event → open requests closed, history kept.
+- `_hub_notify()` hook is a no-op until Stage 7 (nothing is emailed yet; members see requests on Home).
+**Screens** Event page: “Can you help?” (Yes → whole event / part → Send), my invitation (Accept / Decline / withdraw), sections Confirmed · Venue-wide cover · Expected by role · Available · (organisers) Awaiting · Declined — one card per person; organiser panels: Request availability (pre-ticked suggestions, explicit Send), Invite a person (request or record offline yes), Record availability. Member Home; `/manage/requests`.
+**Tests** `tests/db/hub-availability.db.test.ts` 28 (C14, C16–C24, H25, IDOR, rollback), `tests/unit/involvement.test.ts` (C47 card logic), `tests/e2e/hub-stage3.mts` 19/19.
+**Decided** Any signed-in member may offer availability on a help-wanted event; only people asked can be “Not replied”. Partial times on an event with no recorded finish are kept and flagged for an organiser. A volunteer can withdraw from something they confirmed (organiser sees it).

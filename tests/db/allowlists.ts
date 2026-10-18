@@ -25,6 +25,11 @@ export const HUB_SIGNED_IN_FUNCTIONS = [
   "hub_set_coordinator_scopes", "hub_directory",
   // Stage 2
   "hub_can_manage_event", "hub_create_event", "hub_update_event", "hub_set_event_status",
+  // Stage 3
+  "hub_request_availability", "hub_mark_request_contacted", "hub_respond_availability", "hub_record_availability",
+  "hub_invite_to_help", "hub_respond_assignment", "hub_withdraw_assignment", "hub_record_assignment_response",
+  "hub_cancel_assignment", "hub_set_expected_override", "hub_event_involvement", "hub_request_candidates",
+  "hub_people_picker", "hub_my_home", "hub_open_requests",
 ];
 
 export const SIGNED_IN_FUNCTIONS = [...new Set([...LEGACY_SIGNED_IN_FUNCTIONS, ...HUB_SIGNED_IN_FUNCTIONS])].sort();
@@ -38,4 +43,5 @@ export const SERVICE_ROLE_FUNCTIONS = [
 /** Tables signed-in users can read (RLS narrows rows). No Hub table is directly writable. */
 export const HUB_SELECT_ONLY_TABLES = [
   "people", "user_accounts", "coordinator_scopes", "team_people", "volunteer_preferences", "usual_availability",
+  "availability_requests", "event_availability", "hub_assignments", "event_participation_exceptions",
 ];
