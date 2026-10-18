@@ -16,8 +16,7 @@
 -- new ones and the column). Message rows are never deleted; suppressed ones stay for the record.
 
 alter table public.club_settings add column email_released_from timestamptz;
-comment on column public.club_settings.email_released_from is
-  'NULL = email held (nothing sent). Otherwise messages created at/after this time may be sent.';
+-- email_released_from: NULL = email held (nothing sent). Otherwise messages created at/after this time may be sent.
 
 -- Why a pending message should no longer be sent (NULL = still current). Internal only.
 create function public._outbox_obsolete_reason(p_id uuid) returns text
