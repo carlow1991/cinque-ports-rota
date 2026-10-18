@@ -75,7 +75,7 @@ const vol = await phone("vol@test.local");
 const A = admin.page, V = vol.page;
 
 // 1. Needs action: approvals, late cancellations, unanswered invitations.
-await open(A, "/manage/approvals", "Needs action");
+await open(A, "/manage/approvals", "Requests");
 const na = await main(A);
 check("needs-action lists a late cancellation with its reason", na.includes("Late cancellation requests (1)") && na.includes("Car broke down"));
 check("needs-action lists the approval request", na.includes("Waiting for approval (1)") && na.includes("Filler Person"));
@@ -239,7 +239,7 @@ await noOverflow(A, "volunteers"); await shot(A, "08-volunteers");
 // 11. Coordinator (Freemens Way only) scope.
 const coord = await phone("coord@test.local");
 const C = coord.page;
-await open(C, "/manage/approvals", "Needs action");
+await open(C, "/manage/approvals", "Requests");
 check("coordinator's needs-action excludes the other venue", !(await main(C)).includes("Marke Wood"));
 await C.goto(`${APP}/manage/shifts/${await shiftId("E2E Sunday fixture", "pitch_setup")}/assign`);
 await C.getByRole("heading", { level: 1, name: "Not found" }).waitFor();

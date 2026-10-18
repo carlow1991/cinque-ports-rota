@@ -69,7 +69,7 @@ await page.getByRole("button", { name: "Email me a sign-in code" }).click();
 await page.fill("#code", "000000");
 await Promise.all([page.waitForURL((u) => !u.pathname.startsWith("/login")), page.getByRole("button", { name: "Sign in" }).click()]);
 check("bootstrapped admin signs in and lands in the organiser area", new URL(page.url()).pathname.startsWith("/manage"), new URL(page.url()).pathname);
-for (const [path, h] of [["/manage", "Next 7 days"], ["/manage/volunteers", "Volunteers"], ["/manage/settings", "Settings"], ["/manage/templates", "Templates"], ["/rota", /Rota/]] as const) {
+for (const [path, h] of [["/manage", "Overview"], ["/manage/volunteers", "Volunteers"], ["/manage/settings", "Settings"], ["/manage/templates", "Templates"], ["/rota", /Rota/]] as const) {
   await page.goto(`${APP}${path}`);
   const ok = await page.getByRole("heading", { level: 1, name: h }).first().waitFor({ timeout: 15_000 }).then(() => true, () => false);
   check(`${path} renders for the new admin`, ok);

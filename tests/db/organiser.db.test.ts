@@ -73,6 +73,19 @@ describe("manage_action_queue", () => {
     expect(await db.asUser(coordFW.uid, (c) => rows(c, "select * from public.manage_action_queue()"))).toEqual([]);
     expect(await db.asUser(alice.uid, (c) => rows(c, "select * from public.manage_action_queue()"))).toEqual([]);
   });
+
+  it("tells a reconfirmation (reset after postponement) apart from a fresh invitation", async () => {
+    const r = await person(db, "volunteer", { name: "Rory Reconfirm" });
+    const f = await person(db, "volunteer", { name: "Fran Fresh" });
+    const ev = await makeEvent(db, { venue: fw, start: inHours(400), end: inHours(402), title: "FW postponed" });
+    const s = await makeShift(db, { event: ev, duty: "cleaning", start: inHours(402), end: inHours(403), required: 2 });
+    await rpc(db, r, "self_signup", [s]);                                     // confirmed…
+    await rpc(db, coordFW, "allocate_volunteer", [s, f.id]);                  // fresh invitation
+    await rpc(db, coordFW, "postpone_event", [ev, "Waterlogged"]);            // …both reset to invited
+    const q = await db.asUser(coordFW.uid, (c) => rows<{ kind: string; display_name: string }>(c,
+      "select kind, display_name from public.manage_action_queue() where event_title = 'FW postponed'"));
+    expect(q).toEqual([{ kind: "reconfirmation", display_name: "Rory Reconfirm" }, { kind: "invitation", display_name: "Fran Fresh" }]);
+  });
 });
 
 describe("conflicts on allocation", () => {

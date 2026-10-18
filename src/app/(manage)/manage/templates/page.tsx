@@ -7,6 +7,7 @@ import { MANAGER_ROLES } from "@/lib/auth/access";
 import { requireRole } from "@/lib/auth/dal";
 import { loadTemplates, loadVenues } from "@/lib/data/manage";
 import { describeOffset } from "@/lib/domain/templates";
+import { SetupTabs } from "@/components/manage-nav";
 
 export const metadata: Metadata = { title: "Templates" };
 
@@ -25,6 +26,7 @@ async function Templates() {
 
   return (
     <section aria-labelledby="tpl-heading" className="space-y-4">
+      <SetupTabs current="templates" isAdmin={me.role === "admin"} />
       <h1 id="tpl-heading" className="text-2xl font-bold text-club">Templates</h1>
       <Notice tone="info">
         Staffing numbers are <strong>suggested defaults</strong>, not FA, statutory or grounds-safety minimums. Organisers adjust them per

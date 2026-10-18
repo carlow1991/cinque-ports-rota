@@ -18,6 +18,7 @@
     "e2e:phase6": "tests/e2e/run.sh tests/e2e/phase6-email.mts",
     "e2e:phase7": "tests/e2e/run.sh tests/e2e/phase7-pilot.mts",
     "e2e:improve02": "tests/e2e/run.sh tests/e2e/improve-truthful-states.mts",
+    "e2e:improve03": "tests/e2e/run.sh tests/e2e/improve-organiser-overview.mts",
     "check-env": "node scripts/check-env.mts"
   },
   "dependencies": {

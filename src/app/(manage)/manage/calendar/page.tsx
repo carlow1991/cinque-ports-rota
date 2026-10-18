@@ -9,6 +9,7 @@ import { requireRole } from "@/lib/auth/dal";
 import { loadManagedVenueIds, loadOverview, loadVenues } from "@/lib/data/manage";
 import { groupByDay } from "@/lib/domain/calendar";
 import { addDays, formatDateKey, isDateKey, startOfLondonDay, startOfWeek, todayKey } from "@/lib/time/london";
+import { EventsTabs, NewEventButton } from "@/components/manage-nav";
 
 export const metadata: Metadata = { title: "Calendar" };
 
@@ -44,6 +45,7 @@ async function Calendar({ searchParams }: { searchParams: PageProps<"/manage/cal
 
   return (
     <section aria-labelledby="cal-heading" className="space-y-4">
+      <div className="flex flex-wrap items-center justify-between gap-2"><EventsTabs current="calendar" /><NewEventButton /></div>
       <div className="flex flex-wrap items-center justify-between gap-2">
         <h1 id="cal-heading" className="text-2xl font-bold text-club">Calendar</h1>
         <LinkButton href="/manage/events/new">New event</LinkButton>

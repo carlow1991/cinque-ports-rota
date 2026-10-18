@@ -8,6 +8,7 @@ import { loadClubSettings, loadDutyTypes, loadOutboxSummary, loadTeams, loadVenu
 import { emailConfig } from "@/lib/email/worker";
 import { formatDay, formatTime } from "@/lib/time/london";
 import { retryFailedEmailsAction, saveClubSettingsAction, saveDutyTypeAction, saveTeamAction, saveVenueAction } from "./actions";
+import { SetupTabs } from "@/components/manage-nav";
 
 export const metadata: Metadata = { title: "Settings" };
 
@@ -25,6 +26,7 @@ async function Settings() {
 
   return (
     <section className="space-y-4">
+      <SetupTabs current="settings" isAdmin />
       <h1 className="text-2xl font-bold text-club">Settings</h1>
 
       <Card title="Rota rules">

@@ -9,6 +9,7 @@ import { loadCoverGaps, loadCoverageWindow, loadDutyTypes, loadManagedVenueIds, 
 import { parseRanges } from "@/lib/domain/coverage";
 import { expectedOnSite, staffingByShift } from "@/lib/domain/staffing";
 import { addDays, formatDateKey, formatDay, formatRange, formatTime, isDateKey, londonParts, startOfLondonDay, todayKey } from "@/lib/time/london";
+import { EventsTabs, NewEventButton } from "@/components/manage-nav";
 
 export const metadata: Metadata = { title: "Coverage" };
 
@@ -68,6 +69,7 @@ async function Coverage({ searchParams }: { searchParams: PageProps<"/manage/cov
 
   return (
     <section aria-labelledby="cov-heading" className="space-y-4">
+      <div className="flex flex-wrap items-center justify-between gap-2"><EventsTabs current="coverage" /><NewEventButton /></div>
       <div className="flex flex-wrap items-center justify-between gap-2">
         <h1 id="cov-heading" className="text-2xl font-bold text-club">Coverage</h1>
         <LinkButton variant="secondary" href={`/manage/coverage/print?day=${day}${venueParam ? `&venue=${venueParam}` : ""}`}>Print day rota</LinkButton>

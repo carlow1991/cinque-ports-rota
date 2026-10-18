@@ -230,7 +230,7 @@ export async function loadRoster(opts: { eventId?: string; from?: Date; to?: Dat
 }
 
 export type QueueRow = {
-  kind: "approval" | "invitation" | "cancellation"; assignment_id: string; request_id: string | null; event_id: string;
+  kind: "approval" | "invitation" | "reconfirmation" | "cancellation"; assignment_id: string; request_id: string | null; event_id: string;
   event_title: string; venue_name: string; duty_name: string; shift_starts_at: string; shift_ends_at: string;
   display_name: string; reason: string | null; since: string;
 };

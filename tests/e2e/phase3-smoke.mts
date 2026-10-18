@@ -45,7 +45,7 @@ async function shot(page: Page, name: string) {
 {
   const { page, ctx } = await session("admin@test.local");
   check("admin lands on organiser dashboard", new URL(page.url()).pathname === "/manage");
-  await page.waitForSelector("text=Next 7 days");
+  await page.getByRole("heading", { level: 1, name: "Overview" }).waitFor();
   await noOverflow(page, "dashboard"); await shot(page, "01-dashboard");
 
   await page.goto(`${APP}/manage/calendar?week=${demo.day}`);
