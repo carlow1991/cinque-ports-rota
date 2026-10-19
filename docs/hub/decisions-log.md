@@ -12,7 +12,7 @@
 | D7 | Which events ask for availability, and who is routinely suggested | Per event, off by default; routine suggestions off per person. |
 | D8 | Who are administrators / coordinators | Existing admin carried over; no one else. |
 | D9 | Email domain/provider; turning email on | Unchanged: off until A3 in `docs/club-decisions.md`. |
-| D10 | Merge `hub/volunteer-hub` and deploy | Not merged, not deployed. Rollback point `main` @ `98c0f6d`. |
+| D10 | Merge `hub/volunteer-hub` and deploy | **Done 19 Oct 2026** (main @ 858d0bf). Rollback point `main` @ `98c0f6d`. |
 
 ## B. Decided pragmatically (documented, reversible)
 **Identity & permissions**

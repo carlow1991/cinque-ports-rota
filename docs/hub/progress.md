@@ -78,3 +78,8 @@ See `stage-0-audit.md`.
 **Live system** Read-only preflight on the live project: 0 problems. Nothing applied, sent or deployed.
 
 **Security review** An independent review found no anon/PUBLIC exposure. One high and one medium issue were fixed in `20261019000800_hub_hardening.sql` (details in `decisions-log.md` §B2). Final run: `npm test` 41 files / 614 tests, lint and typecheck clean, `npm run e2e` all stages + demo (149/149 checks).
+
+## Deployed — 19 Oct 2026
+- Live database: all 8 Hub changes applied by Carl in the SQL Editor (`docs/sql/deploy-hub-20261019.sql`, one transaction); migration history aligned (28 rows, repo names). Checked afterwards: 1 person / 1 linked admin carried over, fixture and its 4 shifts kept, Freemens Way inactive, RLS on every table, anon can call nothing, only the 9 expected secret-key functions, admin notes column-withheld, email still paused, outbox empty.
+- App: `hub/volunteer-hub` merged to `main` (858d0bf); Vercel production build succeeded. Public pages and sign-in load; signed-in pages redirect to sign-in.
+- Outstanding: `SUPABASE_SECRET_KEY` is not reaching the app in Vercel Production (the public roles list shows "not available" and the database receives no calls), so the public form can't save applications until it's added and the app redeployed.
