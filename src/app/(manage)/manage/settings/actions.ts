@@ -3,14 +3,14 @@
 import { refresh } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
-import { requireRole } from "@/lib/auth/dal";
+import { requireLevel } from "@/lib/auth/dal";
+import { HUB_ADMIN } from "@/lib/auth/access";
 import { createClient } from "@/lib/supabase/server";
 import { fail, firstIssue, friendlyError, type ActionResult } from "@/lib/actions/result";
 import { kickOutbox } from "@/lib/email/server";
 import { messagingState } from "@/lib/email/state";
 
 /** Admin-only reference data. RLS independently restricts every write to admins. */
-const ADMIN = ["admin"] as const;
 const text = (min: number, max: number, msg: string) => z.string().trim().min(min, msg).max(max);
 
 async function done(r: { error: { message?: string; code?: string; details?: string | null } | null; count?: number | null }, msg: string): Promise<ActionResult> {
@@ -27,7 +27,7 @@ const venueSchema = z.object({
 });
 
 export async function saveVenueAction(_p: ActionResult | null, fd: FormData): Promise<ActionResult> {
-  await requireRole(ADMIN);
+  await requireLevel(HUB_ADMIN);
   const parsed = venueSchema.safeParse(Object.fromEntries(fd));
   if (!parsed.success) return fail(firstIssue(parsed.error.issues));
   const v = { ...parsed.data, address: parsed.data.address || null, active: fd.get("active") === "on" };
@@ -41,7 +41,7 @@ export async function saveVenueAction(_p: ActionResult | null, fd: FormData): Pr
 }
 
 export async function saveTeamAction(_p: ActionResult | null, fd: FormData): Promise<ActionResult> {
-  await requireRole(ADMIN);
+  await requireLevel(HUB_ADMIN);
   const name = text(1, 80, "Enter a team name.").safeParse(fd.get("name"));
   if (!name.success) return fail(firstIssue(name.error.issues));
   const sb = await createClient();
@@ -60,7 +60,7 @@ const dutySchema = z.object({
 
 /** The nine duty codes are fixed (no add/delete); labels and the authorisation flag are editable. */
 export async function saveDutyTypeAction(_p: ActionResult | null, fd: FormData): Promise<ActionResult> {
-  await requireRole(ADMIN);
+  await requireLevel(HUB_ADMIN);
   const parsed = dutySchema.safeParse(Object.fromEntries(fd));
   if (!parsed.success) return fail(firstIssue(parsed.error.issues));
   const sb = await createClient();
@@ -74,7 +74,7 @@ export async function saveDutyTypeAction(_p: ActionResult | null, fd: FormData):
 }
 
 export async function saveClubSettingsAction(_p: ActionResult | null, fd: FormData): Promise<ActionResult> {
-  await requireRole(ADMIN);
+  await requireLevel(HUB_ADMIN);
   const h = z.coerce.number().int().min(0).max(336).safeParse(fd.get("withdrawal_cutoff_hours"));
   if (!h.success) return fail("The cut-off must be between 0 and 336 hours.");
   const sb = await createClient();
@@ -86,7 +86,7 @@ export async function saveClubSettingsAction(_p: ActionResult | null, fd: FormDa
 
 /** Put emails that failed in the last 7 days back in the queue (admin only; checked again in the database). */
 export async function retryFailedEmailsAction(_p: ActionResult | null): Promise<ActionResult> {
-  await requireRole(ADMIN);
+  await requireLevel(HUB_ADMIN);
   const sb = await createClient();
   const { data, error } = await sb.rpc("admin_retry_failed_emails");
   if (error) return fail(friendlyError(error));
@@ -101,7 +101,7 @@ export async function retryFailedEmailsAction(_p: ActionResult | null): Promise<
  * switch is on and configured, so messages can't pile up and then all go later.
  */
 export async function setEmailReleaseAction(_p: ActionResult | null, fd: FormData): Promise<ActionResult> {
-  await requireRole(ADMIN);
+  await requireLevel(HUB_ADMIN);
   const mode = z.enum(["new_only", "include_current", "pause"]).safeParse(fd.get("mode"));
   if (!mode.success) return fail("Choose an option.");
   const env = messagingState();
@@ -117,4 +117,19 @@ export async function setEmailReleaseAction(_p: ActionResult | null, fd: FormDat
   const d = (data ?? {}) as { suppressed_out_of_date?: number; held_back?: number };
   redirect(mode.data === "pause" ? "/manage/settings?email=paused#email"
     : `/manage/settings?email=started&held=${d.held_back ?? 0}&dropped=${d.suppressed_out_of_date ?? 0}#email`);
+}
+
+/** Club details and Hub switches (contact email, applications open, retention, reminders). */
+export async function saveHubSettingsAction(_p: ActionResult | null, fd: FormData): Promise<ActionResult> {
+  await requireLevel(HUB_ADMIN);
+  const months = String(fd.get("application_retention_months") ?? "").trim();
+  if (months && !/^\d{1,3}$/.test(months)) return fail("Enter a number of months, or leave it blank.");
+  const sb = await createClient();
+  const { error } = await sb.rpc("hub_save_settings", { p: {
+    contact_email: String(fd.get("contact_email") ?? "").trim(), applications_open: fd.get("applications_open") === "on",
+    application_retention_months: months, reminder_day_before: fd.get("reminder_day_before") === "on",
+  } });
+  if (error) return fail(friendlyError(error));
+  refresh();
+  return { ok: true, message: "Settings saved." };
 }

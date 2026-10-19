@@ -4,9 +4,9 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { siteUrl } from "@/lib/env";
 import { log } from "@/lib/log";
-import { linkAllowsEntry, homePathFor, MANAGER_ROLES } from "@/lib/auth/access";
+import { linkAllowsEntry, hubHomePath, isHubManager } from "@/lib/auth/access";
 import { returnPathAfterLogin } from "@/lib/auth/paths";
-import { resolveAccess } from "@/lib/auth/dal";
+import { resolveHubAccess } from "@/lib/auth/dal";
 import {
   codeSchema,
   emailSchema,
@@ -52,7 +52,7 @@ export async function requestCode(_prev: LoginState, formData: FormData): Promis
 }
 
 /**
- * Step 2: verify the code, link the Auth user to the pre-created volunteer row
+ * Step 2: verify the code, link the Auth user to the invited person's portal account
  * (server-side, by verified email only), then route by role.
  */
 export async function verifyCode(prev: LoginState, formData: FormData): Promise<LoginState> {
@@ -69,19 +69,19 @@ export async function verifyCode(prev: LoginState, formData: FormData): Promise<
   const { error } = await supabase.auth.verifyOtp({ email: email.data, token: code.data, type: "email" });
   if (error) return { ...back, error: GENERIC_CODE_ERROR };
 
-  const { data: linkResult, error: linkError } = await supabase.rpc("link_volunteer_account");
+  const { data: linkResult, error: linkError } = await supabase.rpc("link_person_account");
   if (linkError || !linkAllowsEntry(linkResult as string)) {
     await supabase.auth.signOut();
     return { step: "email", error: NO_ACCESS_ERROR };
   }
 
-  const access = await resolveAccess();
+  const access = await resolveHubAccess();
   if (access.kind !== "allow") {
     await supabase.auth.signOut();
     return { step: "email", error: NO_ACCESS_ERROR };
   }
-  const role = access.volunteer.role;
-  redirect(returnPathAfterLogin(next, homePathFor(role), MANAGER_ROLES.includes(role)));
+  const level = access.person.level;
+  redirect(returnPathAfterLogin(next, hubHomePath(level), isHubManager(level)));
 }
 
 /** The page they were trying to reach (a hidden form field, validated again before use). */

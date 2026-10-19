@@ -93,5 +93,12 @@ export function checkEnv(e: Env): Finding[] {
   if (!prod && isTrue(e, "AUTH_INVITES_ENABLED")) warn("AUTH_INVITES_ENABLED", "is on outside production: invitations are real emails to real people");
 
   if (live && has(e, "TEST_PG_ADMIN_URL")) warn("TEST_PG_ADMIN_URL", "is for local tests only; don't set it in Vercel");
+  // ---- Volunteer Hub ----------------------------------------------------------------------------
+  // The public application form and opportunities page need the server-only secret key.
+  if (live && !has(e, "SUPABASE_SECRET_KEY")) warn("SUPABASE_SECRET_KEY", "is not set: the public volunteer form and opportunities page will say they are unavailable");
+  if (has(e, "LEGACY_ROTA_UI") && e.LEGACY_ROTA_UI !== "true" && e.LEGACY_ROTA_UI !== "false") err("LEGACY_ROTA_UI", "must be true or false");
+  if (prod && isTrue(e, "LEGACY_ROTA_UI")) warn("LEGACY_ROTA_UI", "is on: the retired template rota screens are reachable again");
+  if (has(e, "CLUB_CONTACT_EMAIL") && !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(e.CLUB_CONTACT_EMAIL!)) err("CLUB_CONTACT_EMAIL", "is not a valid email address");
+
   return out;
 }

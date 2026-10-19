@@ -1,15 +1,15 @@
 import { NextResponse, type NextRequest } from "next/server";
 import type { EmailOtpType } from "@supabase/supabase-js";
 import { createClient } from "@/lib/supabase/server";
-import { homePathFor, linkAllowsEntry } from "@/lib/auth/access";
-import { resolveAccess } from "@/lib/auth/dal";
+import { hubHomePath, linkAllowsEntry } from "@/lib/auth/access";
+import { resolveHubAccess } from "@/lib/auth/dal";
 import { safeNextPath } from "@/lib/auth/paths";
 
 const ALLOWED_TYPES: readonly EmailOtpType[] = ["email", "magiclink", "invite", "signup"];
 
 /**
  * Completes sign-in from an emailed link (admin invite or sign-in link), then links the
- * Auth user to the pre-created volunteer row by VERIFIED email only. Any failure signs
+ * Auth user to the invited person's portal account by VERIFIED email only. Any failure signs
  * the user out and returns them to /login with a non-revealing message.
  */
 export async function GET(request: NextRequest) {
@@ -34,17 +34,17 @@ export async function GET(request: NextRequest) {
     return NextResponse.redirect(`${origin}/login?error=link`, { status: 303 });
   }
 
-  const { data: linkResult, error: linkError } = await supabase.rpc("link_volunteer_account");
+  const { data: linkResult, error: linkError } = await supabase.rpc("link_person_account");
   if (linkError || !linkAllowsEntry(linkResult as string)) {
     await supabase.auth.signOut();
     return NextResponse.redirect(`${origin}/login?error=access`, { status: 303 });
   }
 
-  const access = await resolveAccess();
+  const access = await resolveHubAccess();
   if (access.kind !== "allow") {
     await supabase.auth.signOut();
     return NextResponse.redirect(`${origin}/login?error=access`, { status: 303 });
   }
 
-  return NextResponse.redirect(`${origin}${next || homePathFor(access.volunteer.role)}`, { status: 303 });
+  return NextResponse.redirect(`${origin}${next || hubHomePath(access.person.level)}`, { status: 303 });
 }

@@ -1,6 +1,8 @@
 /** Routes reachable without a session. Everything else requires sign-in. */
 // "/api/cron/" skips the session check only: the route itself requires the CRON_SECRET bearer token.
-const PUBLIC_PREFIXES = ["/login", "/auth/", "/no-access", "/api/cron/"];
+// "/volunteer" (opportunities + application) and "/privacy" are the public, no-login pages; "/api/public/"
+// is the rate-limited application endpoint (it reads nothing back).
+const PUBLIC_PREFIXES = ["/login", "/auth/", "/no-access", "/api/cron/", "/volunteer", "/privacy", "/api/public/"];
 
 export function isPublicPath(pathname: string): boolean {
   return PUBLIC_PREFIXES.some((p) => pathname === p || pathname.startsWith(p.endsWith("/") ? p : `${p}/`));

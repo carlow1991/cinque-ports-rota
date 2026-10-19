@@ -201,9 +201,9 @@ export async function loadLinkedEvents(coverageEventId: string) {
 
 export async function loadClubSettings() {
   const sb = await createClient();
-  const r = await sb.from("club_settings").select("withdrawal_cutoff_hours, reminder_day_before, timezone").maybeSingle();
+  const r = await sb.from("club_settings").select("withdrawal_cutoff_hours, reminder_day_before, timezone, contact_email, applications_open, application_retention_months").maybeSingle();
   if (r.error) throw new Error("Could not load settings.");
-  return r.data as { withdrawal_cutoff_hours: number; reminder_day_before: boolean; timezone: string } | null;
+  return r.data as { withdrawal_cutoff_hours: number; reminder_day_before: boolean; timezone: string; contact_email: string | null; applications_open: boolean; application_retention_months: number | null } | null;
 }
 
 // ---------------------------------------------------------------------------

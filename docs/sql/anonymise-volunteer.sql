@@ -38,6 +38,12 @@ begin
          email = format('removed+%s@invalid.example', id), is_active = false, auth_user_id = null,
          role = 'volunteer'
    where id = v_id;
+  -- The Volunteer Hub record (same id), if there is one.
+  update public.user_accounts set enabled = false, auth_user_id = null where person_id = v_id;
+  update public.people set full_name = 'Former volunteer', display_name = null, email_normalized = null, phone_normalized = null,
+         notes_private = null, preferred_contact_channel = null, lifecycle_status = 'inactive', directory_visibility = 'private',
+         share_email_with_members = false, share_phone_with_members = false, routine_requests_enabled = false
+   where id = v_id;
   delete from public.coordinator_venues where volunteer_id = v_id;
   delete from public.volunteer_duty_authorisations where volunteer_id = v_id;
   update public.cancellation_requests set reason = null where volunteer_id = v_id;
@@ -47,9 +53,10 @@ begin
   update public.notification_outbox set payload = payload - 'removal_reason' where recipient_volunteer_id = v_id;
   -- Last, so it also cleans the audit rows written by the statements above.
   update public.audit_log
-     set old_data = old_data - 'display_name' - 'reason' - 'removal_reason',
-         new_data = new_data - 'display_name' - 'reason' - 'removal_reason'
-   where (entity_type = 'volunteers' and entity_id = v_id)
+     set old_data = old_data - 'display_name' - 'full_name' - 'reason' - 'removal_reason',
+         new_data = new_data - 'display_name' - 'full_name' - 'reason' - 'removal_reason'
+   where (entity_type in ('volunteers', 'people', 'user_accounts') and entity_id = v_id)
+      or (old_data ->> 'person_id')::uuid = v_id or (new_data ->> 'person_id')::uuid = v_id
       or (entity_type = 'cancellation_requests' and entity_id in (select id from public.cancellation_requests where volunteer_id = v_id))
       or (old_data ->> 'volunteer_id')::uuid = v_id or (new_data ->> 'volunteer_id')::uuid = v_id;
   raise notice 'Done. Now delete the matching user under Authentication → Users.';

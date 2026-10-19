@@ -3,12 +3,14 @@ import { Suspense } from "react";
 import { ActionForm } from "@/components/action-form";
 import { PageLoading } from "@/components/app-header";
 import { Card, Checkbox, Field, Input, Notice, Textarea } from "@/components/ui";
-import { requireRole } from "@/lib/auth/dal";
-import { loadClubSettings, loadDutyTypes, loadEmailBacklog, loadEmailRelease, loadOutboxSummary, loadTeams, loadVenues, type EmailBacklogRow, type OutboxSummaryRow } from "@/lib/data/manage";
+import { requireLevel } from "@/lib/auth/dal";
+import { HUB_ADMIN } from "@/lib/auth/access";
+import { loadClubSettings, loadEmailBacklog, loadEmailRelease, loadOutboxSummary, loadTeams, loadVenues, type EmailBacklogRow, type OutboxSummaryRow } from "@/lib/data/manage";
 import { emailConfig } from "@/lib/email/worker";
 import { formatDay, formatTime } from "@/lib/time/london";
-import { retryFailedEmailsAction, saveClubSettingsAction, setEmailReleaseAction, saveDutyTypeAction, saveTeamAction, saveVenueAction } from "./actions";
-import { SetupTabs } from "@/components/manage-nav";
+import { retryFailedEmailsAction, saveHubSettingsAction, setEmailReleaseAction, saveTeamAction, saveVenueAction } from "./actions";
+import Link from "next/link";
+import { PRIVACY_NOTICE_APPROVED, PRIVACY_NOTICE_VERSION } from "@/lib/privacy";
 
 export const metadata: Metadata = { title: "Settings" };
 
@@ -21,9 +23,9 @@ export default function SettingsPage({ searchParams }: PageProps<"/manage/settin
 }
 
 async function Settings({ searchParams }: { searchParams: PageProps<"/manage/settings">["searchParams"] }) {
-  await requireRole(["admin"]);
-  const [venues, teams, duties, settings, outbox, backlog, release] = await Promise.all([
-    loadVenues(), loadTeams(), loadDutyTypes(), loadClubSettings(), loadOutboxSummary(), loadEmailBacklog(), loadEmailRelease(),
+  await requireLevel(HUB_ADMIN);
+  const [venues, teams, settings, outbox, backlog, release] = await Promise.all([
+    loadVenues(), loadTeams(), loadClubSettings(), loadOutboxSummary(), loadEmailBacklog(), loadEmailRelease(),
   ]);
   const sp = await searchParams;
   const num = (v: unknown) => (typeof v === "string" && /^\d+$/.test(v) ? Number(v) : 0);
@@ -32,17 +34,31 @@ async function Settings({ searchParams }: { searchParams: PageProps<"/manage/set
 
   return (
     <section className="space-y-4">
-      <SetupTabs current="settings" isAdmin />
       <h1 className="text-2xl font-bold text-club">Settings</h1>
 
-      <Card title="Rota rules">
-        <ActionForm action={saveClubSettingsAction} submitLabel="Save" variant="secondary">
-          <Field label="Withdrawal cut-off (hours before a duty)" hint="Inside this window volunteers can only request a cancellation; cover is kept until an organiser acts.">
-            <Input type="number" name="withdrawal_cutoff_hours" min={0} max={336} defaultValue={settings?.withdrawal_cutoff_hours ?? 24} className="max-w-32" />
+      <Card title="Club and Hub">
+        <ActionForm action={saveHubSettingsAction} submitLabel="Save" variant="secondary">
+          <Field label="Club contact email" hint="Shown on the public pages: the privacy notice and the route for under-18s. Leave blank to show “the club secretary”.">
+            <Input name="contact_email" type="email" maxLength={254} defaultValue={settings?.contact_email ?? ""} />
           </Field>
-          <Checkbox name="reminder_day_before" defaultChecked={settings?.reminder_day_before ?? true} label="Send a reminder email the day before (UK time)" />
+          <Checkbox name="applications_open" defaultChecked={settings?.applications_open ?? true} label="Accept offers of help through the public form" />
+          <Field label="Review applications after (months)" hint="Club decision (retention). Leave blank until the club agrees a period; nothing is deleted automatically.">
+            <Input name="application_retention_months" type="number" min={1} max={120} defaultValue={settings?.application_retention_months ?? ""} className="max-w-32" />
+          </Field>
+          <Checkbox name="reminder_day_before" defaultChecked={settings?.reminder_day_before ?? true} label="Email a reminder the day before (18:00 UK time) to people confirmed to help" />
           <p className="text-xs text-ink-muted">Time zone: {settings?.timezone ?? "Europe/London"}</p>
         </ActionForm>
+      </Card>
+
+      <Card title="Privacy">
+        <p className="text-sm">Public privacy notice version <strong>{PRIVACY_NOTICE_VERSION}</strong>{PRIVACY_NOTICE_APPROVED ? "" : " — draft, awaiting the club's approval"}. <Link className="text-club-blue underline" href="/privacy">View</Link></p>
+        <p className="mt-2 text-sm">Downloads (CSV, administrators only — store securely and delete when done):</p>
+        <ul className="mt-1 flex flex-wrap gap-3 text-sm">
+          {/* Plain links with `download`: these are CSV files from a route handler, not pages. */}
+          {(["people", "applications", "events", "commitments"] as const).map((k) => (
+            <li key={k}><a className="font-semibold capitalize text-club-blue underline" href={`/manage/export/${k}`} download>{k}</a></li>
+          ))}
+        </ul>
       </Card>
 
       <EmailCard rows={outbox} backlog={backlog} releasedFrom={release.releasedFrom} note={emailNote} />
@@ -93,23 +109,6 @@ async function Settings({ searchParams }: { searchParams: PageProps<"/manage/set
         </ActionForm>
       </Card>
 
-      <Card title="Duties">
-        <Notice tone="info">The club uses exactly these nine duties. You can rename them, change descriptions and decide which need a club authorisation. Authorisation is a club eligibility flag only. Never record DBS or safeguarding details here.</Notice>
-        <div className="mt-3 space-y-2">
-          {duties.map((d) => (
-            <details key={d.id} className="rounded-lg border border-line p-2">
-              <summary className="cursor-pointer font-semibold">{d.name}{d.requires_authorisation ? " · authorised only" : ""}{d.active ? "" : " · inactive"}</summary>
-              <ActionForm action={saveDutyTypeAction} submitLabel="Save duty" variant="secondary" className="mt-2 space-y-3">
-                <input type="hidden" name="duty_id" value={d.id} />
-                <Field label="Name"><Input name="name" defaultValue={d.name} required maxLength={80} /></Field>
-                <Field label="Description"><Textarea name="description" defaultValue={d.description ?? ""} maxLength={1000} /></Field>
-                <Checkbox name="requires_authorisation" defaultChecked={d.requires_authorisation} label="Needs a club authorisation" />
-                <Checkbox name="active" defaultChecked={d.active} label="Active" />
-              </ActionForm>
-            </details>
-          ))}
-        </div>
-      </Card>
     </section>
   );
 }
@@ -126,6 +125,9 @@ const KIND_LABEL: Record<string, string> = {
   cancellation_declined: "Late cancellation declined", event_cancelled: "Event cancelled", event_postponed: "Event postponed",
   reconfirm_needed: "Please reconfirm", shift_cancelled: "Duty cancelled", reminder: "Day-before reminder",
   cancellation_requested: "Organiser alert: cancellation request", venue_cover_at_risk: "Organiser alert: site cover at risk",
+  availability_request: "Can you help? (availability request)", assignment_request: "Invitation to help", venue_cover_request: "Venue cover request",
+  assignment_reconfirm: "Please reconfirm", assignment_cancelled: "No longer needed", hub_event_cancelled: "Event cancelled", hub_reminder: "Day-before reminder",
+  assignment_confirmed: "Organiser: request accepted", assignment_declined: "Organiser: request declined", assignment_withdrawn: "Organiser: volunteer withdrew",
 };
 
 /**

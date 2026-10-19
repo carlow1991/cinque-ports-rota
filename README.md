@@ -1,9 +1,27 @@
-# Cinque Ports FC — Volunteer & Venue Rota
+# Cinque Ports FC — Volunteer Hub
 
-Standalone, invite-only volunteer rota for Marke Wood and Freemens Way.
-**Not part of Carl OS**, with no shared code, database or credentials.
+Invite-only club Volunteer Hub (calendar, people, availability, venue cover, club roles, public volunteer
+applications) for Cinque Ports FC. It replaces the earlier volunteer rota and duty-template system, keeping
+all of its data. **Not part of Carl OS**, with no shared code, database or credentials.
 
-**Status:** All build phases complete. Pilot release prepared and tested; **not deployed** (awaiting the club decisions in `docs/club-decisions.md`). See `docs/setup.md` to run it locally.
+**Status:** Hub redesign built and tested on branch `hub/volunteer-hub` (Stages 0–7). **Not deployed and
+not applied to the live database** — see `docs/hub/decisions-log.md` §A and `docs/hub/deployment-runbook.md`.
+
+| Hub document | Purpose |
+|---|---|
+| `CLAUDE.md`, `docs/hub/00–06*.md` | Hub specification pack (supersedes the rota specs below) |
+| `docs/hub/stage-0-audit.md` | Audit of the existing app, reuse/replace and migration plan |
+| `docs/hub/progress.md` | What each stage built and tested |
+| `docs/hub/acceptance-matrix.md` | Every C/H acceptance test mapped to its automated evidence |
+| `docs/hub/admin-guide.md` / `volunteer-guide.md` | How organisers and volunteers use the Hub |
+| `docs/hub/deployment-runbook.md` | Backup, migration, deploy, smoke test, rollback |
+| `docs/hub/decisions-log.md` | Decisions needed from the club, and those made pragmatically |
+| `docs/sql/hub-preflight.sql`, `docs/sql/rollback-20261019*.sql` | Read-only preflight; tested per-stage rollbacks |
+| `supabase/seed-hub-demo.sql` | Fictional demo data for local/staging only |
+
+Tests: `npm test` (unit + database, needs local Postgres on 54329), `npm run e2e` (browser, fake Supabase), `npm run e2e:demo` (owner demo script).
+
+### Earlier rota documentation (history; still accurate for the legacy tables and email setup)
 
 | Document | Purpose |
 |---|---|

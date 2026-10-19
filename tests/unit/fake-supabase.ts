@@ -17,7 +17,14 @@ export function makeFakeSupabase(s: FakeScenario) {
     verifyOtp: vi.fn(async (_args: unknown) => ({ data: {}, error: s.verifyOtpError ? { status: 403, code: "otp_expired" } : null })),
     exchangeCodeForSession: vi.fn(async (_code: string) => ({ data: {}, error: s.verifyOtpError ? { status: 400 } : null })),
     signOut: vi.fn(async () => ({ error: null })),
-    rpc: vi.fn(async (_fn: string) => ({ data: s.linkResult ?? "linked", error: null })),
+    rpc: vi.fn(async (fn: string) => {
+      // hub_me: the caller's person + portal account (the same scenario row, in Hub terms).
+      if (fn === "hub_me") {
+        const v = s.volunteer;
+        return { data: v ? { person_id: v.id, name: v.display_name, access_level: v.role === "volunteer" ? "member" : v.role, enabled: v.is_active } : null, error: null };
+      }
+      return { data: s.linkResult ?? "linked", error: null };
+    }),
     eqFilters: [] as Array<[string, unknown]>,
   };
 

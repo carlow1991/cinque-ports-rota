@@ -40,3 +40,35 @@ export type LinkResult = "linked" | "already_linked" | "not_invited" | "inactive
 export function linkAllowsEntry(result: string | null | undefined): boolean {
   return result === "linked" || result === "already_linked";
 }
+
+// ---------------------------------------------------------------------------
+// Volunteer Hub: access is based on the PERSON and their portal account (user_accounts).
+// ---------------------------------------------------------------------------
+export type AccessLevel = "admin" | "coordinator" | "member";
+
+export type HubPerson = { id: string; name: string; level: AccessLevel };
+
+export type HubAccessDecision =
+  | { kind: "allow"; person: HubPerson }
+  | { kind: "signed_out" }
+  | { kind: "no_access" }
+  | { kind: "forbidden" };
+
+export const HUB_MANAGERS: readonly AccessLevel[] = ["admin", "coordinator"];
+export const HUB_ADMIN: readonly AccessLevel[] = ["admin"];
+
+export type HubMe = { person_id: string; name: string; access_level: AccessLevel; enabled: boolean } | null;
+
+export function decideHubAccess(authUserId: string | null, me: HubMe, allowed?: readonly AccessLevel[]): HubAccessDecision {
+  if (!authUserId) return { kind: "signed_out" };
+  if (!me || !me.enabled || !["admin", "coordinator", "member"].includes(me.access_level)) return { kind: "no_access" };
+  if (allowed && !allowed.includes(me.access_level)) return { kind: "forbidden" };
+  return { kind: "allow", person: { id: me.person_id, name: me.name, level: me.access_level } };
+}
+
+export const isHubManager = (level: AccessLevel) => HUB_MANAGERS.includes(level);
+
+/** Where someone lands after signing in. */
+export function hubHomePath(level: AccessLevel): string {
+  return isHubManager(level) ? "/manage" : "/home";
+}

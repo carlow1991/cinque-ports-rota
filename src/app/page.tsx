@@ -1,8 +1,7 @@
 import { Suspense } from "react";
 import { redirect } from "next/navigation";
 import { PageLoading } from "@/components/app-header";
-import { homePathFor } from "@/lib/auth/access";
-import { requireVolunteer } from "@/lib/auth/dal";
+import { hubHomePath, requirePerson } from "@/lib/auth/dal";
 
 export default function Home() {
   return (
@@ -13,6 +12,6 @@ export default function Home() {
 }
 
 async function SendHome(): Promise<null> {
-  const me = await requireVolunteer();
-  redirect(homePathFor(me.role));
+  const me = await requirePerson();
+  redirect(hubHomePath(me.level));
 }

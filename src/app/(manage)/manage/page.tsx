@@ -2,188 +2,101 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { Suspense } from "react";
 import { PageLoading } from "@/components/app-header";
-import { EventCard } from "@/components/event-card";
-import { NewEventButton } from "@/components/manage-nav";
-import { Badge, Card, CoverBadge, LinkButton } from "@/components/ui";
-import { MANAGER_ROLES } from "@/lib/auth/access";
-import { requireRole } from "@/lib/auth/dal";
-import { loadActionQueue, loadCoverGaps, loadCoverageWindow, loadManagedVenueIds, loadNextEvent } from "@/lib/data/manage";
-import { RANGE_DAYS, RANGE_LABEL, TIER_LABEL, buildAttention, parseRange, type AttentionItem, type RangePreset } from "@/lib/domain/attention";
-import { groupByDay } from "@/lib/domain/calendar";
-import { parseRanges } from "@/lib/domain/coverage";
-import { staffingByShift } from "@/lib/domain/staffing";
-import { addDays, formatDateKey, formatDay, formatRange, londonParts, startOfLondonDay, todayKey } from "@/lib/time/london";
+import { Badge, Card, LinkButton } from "@/components/ui";
+import { CoverBand } from "@/components/hub/cover-band";
+import { HUB_MANAGERS } from "@/lib/auth/access";
+import { requireLevel } from "@/lib/auth/dal";
+import { loadNames, placeName } from "@/lib/data/hub-events";
+import { loadOpenRequests, loadOverview, loadVenueCovers, type EventCounts } from "@/lib/data/hub-involvement";
+import { loadAttention } from "@/lib/data/hub-attention";
+import { eventTimeLabel, groupByDayAndPlace } from "@/lib/domain/hub-calendar";
+import { coversFor } from "@/lib/domain/venue-cover";
+import { addDays, formatDateKey, startOfLondonDay, todayKey } from "@/lib/time/london";
 
-export const metadata: Metadata = { title: "Overview" };
+export const metadata: Metadata = { title: "Manage" };
 
-export default function ManagePage({ searchParams }: PageProps<"/manage">) {
-  return (
-    <Suspense fallback={<PageLoading />}>
-      <Overview searchParams={searchParams} />
-    </Suspense>
-  );
+/** Organiser home (spec 01 §12): what needs attention, then the next 7 days by day and venue. */
+export default function ManagePage() {
+  return <Suspense fallback={<PageLoading />}><Overview /></Suspense>;
 }
 
-const TIER_TONE = { urgent: "bad", site_lead: "warn", open: "warn", reconfirm: "info", approval: "info", invitation: "neutral", draft: "neutral" } as const;
+/** Status counts in words (never colour alone). Expected and Available are never called confirmed. */
+function Counts({ c, help }: { c: EventCounts; help: boolean }) {
+  const items: [number, string, "good" | "neutral" | "info" | "warn"][] = [
+    [c.confirmed, "confirmed", "good"], [c.expected, "expected", "neutral"], [c.available, "available", "info"], [c.pending, "invited, awaiting reply", "warn"], [c.unanswered, "asked, not replied", "warn"],
+  ];
+  const shown = items.filter(([n]) => n > 0);
+  if (shown.length === 0) return <span className="text-xs text-ink-muted">{help ? "No one yet" : "For information"}</span>;
+  return <span className="flex flex-wrap gap-1">{shown.map(([n, t, tone]) => <Badge key={t} tone={tone}>{n} {t}</Badge>)}</span>;
+}
 
-async function Overview({ searchParams }: { searchParams: PageProps<"/manage">["searchParams"] }) {
-  const me = await requireRole(MANAGER_ROLES);
-  const sp = await searchParams;
-  const range = parseRange(sp.range);
+async function Overview() {
+  const me = await requireLevel(HUB_MANAGERS);
   const today = todayKey();
-  const nDays = RANGE_DAYS[range];
-  const days = Array.from({ length: nDays }, (_, i) => addDays(today, i));
-  const from = startOfLondonDay(today);
-  const to = startOfLondonDay(addDays(today, nDays));
-
-  const [{ overview, roster, now }, queue] = await Promise.all([loadCoverageWindow(from, to, null), loadActionQueue()]);
-  const live = overview.filter((e) => e.status !== "cancelled" && e.status !== "completed");
-  // Exact gaps only for events flagged by the database as missing or at risk (usually none or a few).
-  const flagged = live.filter((e) => e.status !== "draft" && (e.cover_state === "at_risk" || e.cover_state === "no_cover"));
-  const gapRows = await loadCoverGaps(flagged.map((e) => e.event_id));
-  const gaps = new Map([...gapRows].map(([id, c]) => [id, parseRanges(c.gaps)]));
-  const staffing = staffingByShift(roster);
-  const { items, laterRequests } = buildAttention({ events: overview, shifts: staffing, queue, gaps, from, to, now: new Date(now), formatRange });
-
-  let next: { id: string; title: string; starts_at: string; status: string; risk: string | null } | null = null;
-  if (live.length === 0) {
-    const n = await loadNextEvent(to, await loadManagedVenueIds(me.role === "admin", me.id));
-    if (n) next = { ...n, risk: (await loadCoverGaps([n.id])).get(n.id)?.state ?? null };
-  }
-
-  const totals = {
-    open: live.reduce((s, e) => s + e.open_slots, 0),
-    pending: live.reduce((s, e) => s + e.pending, 0),
-    invited: live.reduce((s, e) => s + e.invited, 0),
-  };
-  const byDay = groupByDay(overview, days);
-  const lastDay = days[days.length - 1];
+  const from = startOfLondonDay(today), to = startOfLondonDay(addDays(today, 7));
+  const [ov, names, covers, open, attention] = await Promise.all([loadOverview(from, to), loadNames(), loadVenueCovers(from, to), loadOpenRequests(), loadAttention()]);
+  const groups = groupByDayAndPlace(ov.events, (e) => placeName(e, names));
+  const peopleOn = new Map(ov.days.map((d) => [d.day, d.people]));
+  const attentionItems: { n: number; text: string; href: string }[] = [
+    { n: open.invitations.length, text: "invitations awaiting an answer", href: "/manage/requests" },
+    { n: open.unanswered.reduce((a, u) => a + u.unanswered, 0), text: "people asked who haven't replied", href: "/manage/requests" },
+    { n: ov.needs_check.length, text: "availability replies to check (finish time not recorded)", href: "/manage/requests" },
+    { n: attention.new_applications, text: "new volunteer applications", href: "/manage/applications" },
+    { n: attention.roles_recruiting, text: "club roles looking for help", href: "/manage/club-roles" },
+    { n: ov.drafts, text: "draft events not yet published", href: "/manage/events" },
+  ].filter((x) => x.n > 0);
 
   return (
-    <section aria-labelledby="ov-heading" className="space-y-4">
-      <div className="flex flex-wrap items-start justify-between gap-2">
+    <section aria-labelledby="h" className="space-y-4">
+      <div className="flex flex-wrap items-center justify-between gap-2">
         <div>
-          <h1 id="ov-heading" className="text-2xl font-bold text-club">Overview</h1>
-          <p className="text-sm text-ink-muted">Signed in as {me.displayName}. All times UK.</p>
+          <h1 id="h" className="text-2xl font-bold text-club">Overview</h1>
+          <p className="text-sm text-ink-muted">{formatDateKey(today)} – {formatDateKey(addDays(today, 6))}</p>
         </div>
-        <NewEventButton />
+        <div className="flex gap-2">
+          <LinkButton href="/manage/events/new">+ Event</LinkButton>
+          {me.level === "admin" ? <LinkButton href="/manage/people/new" variant="secondary">+ Person</LinkButton> : null}
+        </div>
       </div>
 
-      <RangePresets current={range} />
-      <p className="text-sm font-semibold">
-        {nDays === 1 ? formatDateKey(today) : `${formatDateKey(today)} to ${formatDateKey(lastDay)}`}
-      </p>
-
-      <Card title={`Needs attention (${items.length})`}>
-        {items.length ? (
-          <>
-            <ol className="divide-y divide-line">
-              {items.slice(0, FIRST).map((it) => <AttentionRow key={it.key} it={it} />)}
-            </ol>
-            {items.length > FIRST ? (
-              <details className="group mt-1 border-t border-line">
-                <summary className="flex min-h-11 cursor-pointer items-center font-semibold text-club-blue underline">
-                  Show {items.length - FIRST} more
-                </summary>
-                <ol start={FIRST + 1} className="divide-y divide-line">
-                  {items.slice(FIRST).map((it) => <AttentionRow key={it.key} it={it} />)}
-                </ol>
-              </details>
-            ) : null}
-          </>
-        ) : live.length === 0 ? (
-          <div className="text-sm">
-            <p className="text-ink-muted">No events in this range, so nothing to check here.</p>
-            {next ? (
-              <p className="mt-1">
-                Next scheduled: <Link href={`/manage/events/${next.id}`} className="font-semibold text-club-blue underline">{next.title}</Link>,{" "}
-                {formatDay(new Date(next.starts_at))}{next.status === "draft" ? " (draft, not yet published)" : ""}{" "}
-                {next.risk ? <CoverBadge state={next.risk} /> : null}
-              </p>
-            ) : <p className="mt-1 text-ink-muted">Nothing else is scheduled yet. Use <strong>New event</strong> to add one.</p>}
-          </div>
-        ) : (
-          <p className="text-sm text-ink-muted">
-            Nothing needs action for the {plural(live.length, "event")} in this range: every duty is fully confirmed, every event that needs a site
-            lead has one for the whole time, and there are no requests waiting.
-          </p>
+      <Card title="Needs attention">
+        {attentionItems.length === 0 ? <p className="text-sm">Nothing waiting.</p> : (
+          <ul className="space-y-1">
+            {attentionItems.map((a) => <li key={a.text}><Link className="font-semibold text-club-blue underline" href={a.href}>{a.n} {a.text}</Link></li>)}
+          </ul>
         )}
-        {laterRequests ? (
-          <p className="mt-2 text-sm">
-            {plural(laterRequests, "more request")} {laterRequests === 1 ? "is" : "are"} for duties after this range.{" "}
-            <Link href="/manage/approvals" className="text-club-blue underline">See all requests</Link>
-          </p>
-        ) : null}
       </Card>
 
-      {live.length ? (
-        <p className="text-sm text-ink-muted">
-          In this range: {plural(live.length, "event")} · {plural(totals.open, "open place")} · {totals.pending} awaiting approval ·{" "}
-          {totals.invited} invited (not counted as cover)
-        </p>
-      ) : null}
-
-      {live.length ? (
-        <section aria-labelledby="ov-events" className="space-y-3">
-          <div className="flex flex-wrap items-center justify-between gap-2">
-            <h2 id="ov-events" className="text-lg font-semibold text-club">Events in this range</h2>
-            <Link href="/manage/calendar" className="text-sm text-club-blue underline">Calendar view</Link>
+      <h2 className="text-lg font-bold text-club">This week</h2>
+      {groups.length === 0 ? <Card><p className="text-sm">No events in the next 7 days. <Link className="text-club-blue underline" href="/manage/events/new">Add one</Link></p></Card> : groups.map((g) => (
+        <section key={g.day} aria-label={g.label} className="space-y-2 rounded-xl border border-line bg-white p-3">
+          <div className="flex flex-wrap items-baseline justify-between gap-2">
+            <h3 className="font-bold text-club">{g.label}</h3>
+            {peopleOn.get(g.day) ? <span className="text-sm">{peopleOn.get(g.day)} {peopleOn.get(g.day) === 1 ? "person" : "people"} confirmed to help (each counted once)</span> : null}
           </div>
-          {days.map((d) => {
-            const list = byDay.get(d) ?? [];
-            if (list.length === 0) return null;
-            return (
-              <section key={d} className="space-y-2">
-                <h3 className="text-base font-semibold">{formatDateKey(d)}{d === today ? " (today)" : ""}</h3>
-                {list.map(({ event, overlapsWith }) => <EventCard key={`${d}-${event.event_id}`} e={event} overlapsWith={overlapsWith} />)}
-              </section>
-            );
-          })}
+          {g.places.map((p) => (
+            <div key={p.place} className="space-y-1">
+              <p className="text-sm font-semibold uppercase tracking-wide text-ink-muted">{p.place}{p.events.length > 1 ? ` · ${p.events.length} overlapping events` : ""}</p>
+              <CoverBand covers={coversFor(covers, g.day, p.events[0].venue_id)} />
+              <ul className="divide-y divide-line">
+                {p.events.map((e) => (
+                  <li key={e.id} className="flex flex-wrap items-center justify-between gap-2 py-2">
+                    <div>
+                      <Link href={`/calendar/${e.id}`} className="font-semibold text-club-blue underline">{e.title}</Link>
+                      <p className="text-xs text-ink-muted">{eventTimeLabel(e)}{e.status === "cancelled" ? " · Cancelled" : ""}</p>
+                    </div>
+                    <Counts c={e.counts} help={e.volunteers_enabled} />
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ))}
         </section>
-      ) : null}
-    </section>
-  );
-}
-
-/** Rows shown before "Show N more"; the most urgent are always first. */
-const FIRST = 8;
-const plural = (n: number, one: string, many = `${one}s`) => `${n} ${n === 1 ? one : many}`;
-
-function RangePresets({ current }: { current: RangePreset }) {
-  return (
-    <nav aria-label="Date range" className="flex flex-wrap gap-2">
-      {(["today", "7", "28"] as const).map((r) => (
-        <Link key={r} href={r === "28" ? "/manage" : `/manage?range=${r}`} aria-current={r === current ? "page" : undefined}
-          className={`inline-flex min-h-11 items-center rounded-lg border px-3 text-sm font-semibold ${
-            r === current ? "border-club bg-club text-white" : "border-line bg-white text-club hover:border-club"}`}>
-          {RANGE_LABEL[r]}
-        </Link>
       ))}
-    </nav>
-  );
-}
-
-function AttentionRow({ it }: { it: AttentionItem }) {
-  const start = new Date(it.startsAt), end = new Date(it.endsAt);
-  const day = londonParts(start).dateKey;
-  return (
-    <li className="flex flex-col gap-2 py-3 text-sm sm:flex-row sm:items-start sm:justify-between">
-      <div className="min-w-0 flex-1 space-y-0.5">
-        <p className="flex flex-wrap items-center gap-2">
-          <Badge tone={TIER_TONE[it.tier]}>{TIER_LABEL[it.tier]}</Badge>
-          <span className="font-semibold">{formatDay(start)}</span>
-          <span className="font-mono tabular-nums">{formatRange(start, end)}</span>
-        </p>
-        <p>
-          <Link href={`/manage/events/${it.eventId}`} className="font-semibold text-club-blue underline">{it.eventTitle}</Link>
-          {" · "}{it.venue}{it.duty ? ` · ${it.duty}` : ""}
-        </p>
-        <p>{it.reason}.</p>
-      </div>
-      <LinkButton href={it.action.href} variant={it.tier === "urgent" ? "primary" : "secondary"} className="self-start"
-        aria-label={`${it.action.label}: ${it.duty ?? it.eventTitle}, ${formatDateKey(day)}`}>
-        {it.action.label}
-      </LinkButton>
-    </li>
+      <p className="flex flex-wrap gap-4 text-sm">
+        <Link className="font-semibold text-club-blue underline" href="/manage/venue-cover">Assign venue cover</Link>
+        <Link className="font-semibold text-club-blue underline" href="/manage/requests">Requests</Link>
+      </p>
+    </section>
   );
 }

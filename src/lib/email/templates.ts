@@ -40,7 +40,7 @@ type Spec = {
   audience: "volunteer" | "organiser";
 };
 
-type Details = { duty: string; event: string; venue: string; when: string | null; reason: string };
+type Details = { duty: string; event: string; venue: string; when: string | null; reason: string; person: string };
 
 const myDuties = { label: "Open My duties", path: () => "/my-duties" };
 const eventPage = (label: string) => ({ label, path: (p: EmailPayload) => (isUuid(p.event_id) ? `/rota/${p.event_id}` : "/rota") });
@@ -87,6 +87,37 @@ const SPECS: Record<string, Spec> = {
   cancellation_requested: { audience: "organiser", subject: (d) => `Cancellation request: ${d.duty}, ${d.event}`,
     intro: (d) => `A volunteer has asked to be released from ${d.duty} at ${d.event}. They stay on the duty until you decide.`,
     action: { label: "Review in Needs action", path: () => "/manage/approvals" } },
+  // ---- Volunteer Hub (sent only after a deliberate action; never for creating people or events) ----
+  availability_request: { audience: "volunteer", subject: (d) => `Can you help? ${d.event}`,
+    intro: (d) => `The club is asking who could help at ${d.event}. Please answer Yes or No in the Volunteer Hub. Saying yes isn't a booking — an organiser will confirm with you.`,
+    action: { label: "Answer in the Hub", path: (p) => (isUuid(p.event_id) ? `/calendar/${p.event_id}` : "/home") } },
+  assignment_request: { audience: "volunteer", subject: (d) => `Can you help with ${d.duty}? ${d.event}`,
+    intro: (d) => `An organiser has asked if you can help with ${d.duty} at ${d.event}. Please accept or decline in the Volunteer Hub. You're not booked until you accept.`,
+    action: { label: "Accept or decline", path: () => "/home" } },
+  venue_cover_request: { audience: "volunteer", subject: (d) => `Can you cover ${d.duty}? ${d.venue}`,
+    intro: (d) => `An organiser has asked if you can cover ${d.duty} at ${d.venue}. Please accept or decline in the Volunteer Hub.`,
+    action: { label: "Accept or decline", path: () => "/home" } },
+  assignment_reconfirm: { audience: "volunteer", subject: (d) => `Please reconfirm: ${d.duty}, ${d.event}`,
+    intro: (d) => `The date, time or place of ${d.duty} at ${d.event} has changed. Please check the details below and accept or decline again in the Volunteer Hub.`,
+    action: { label: "Reconfirm", path: () => "/home" } },
+  assignment_cancelled: { audience: "volunteer", subject: (d) => `No longer needed: ${d.duty}, ${d.event}`,
+    intro: (d) => `An organiser has cancelled your ${d.duty} at ${d.event}, so you don't need to attend. Thank you for being ready to help.`,
+    extra: reasonPara("Reason given"), action: { label: "Open the Hub", path: () => "/home" } },
+  hub_event_cancelled: { audience: "volunteer", subject: (d) => `Cancelled: ${d.event}`,
+    intro: (d) => `${d.event} has been cancelled, so your ${d.duty} won't go ahead. Thank you for being ready to help.`,
+    action: { label: "Open the Hub", path: () => "/home" } },
+  hub_reminder: { audience: "volunteer", subject: (d) => `Tomorrow: ${d.duty}, ${d.event}`,
+    intro: (d) => `A quick reminder that you're helping with ${d.duty} at ${d.event} tomorrow. Thank you!`,
+    action: { label: "See the details", path: (p) => (isUuid(p.event_id) ? `/calendar/${p.event_id}` : "/home") } },
+  assignment_confirmed: { audience: "organiser", subject: (d) => `${d.person} accepted: ${d.duty}, ${d.event}`,
+    intro: (d) => `${d.person} has accepted your request to help with ${d.duty} at ${d.event}.`,
+    action: { label: "Open the event", path: (p) => (isUuid(p.event_id) ? `/calendar/${p.event_id}` : "/manage/requests") } },
+  assignment_declined: { audience: "organiser", subject: (d) => `${d.person} can't help: ${d.duty}, ${d.event}`,
+    intro: (d) => `${d.person} has declined your request to help with ${d.duty} at ${d.event}. You may want to ask someone else.`,
+    action: { label: "Open the event", path: (p) => (isUuid(p.event_id) ? `/calendar/${p.event_id}` : "/manage/requests") } },
+  assignment_withdrawn: { audience: "organiser", subject: (d) => `${d.person} can no longer help: ${d.duty}, ${d.event}`,
+    intro: (d) => `${d.person} has let you know they can no longer help with ${d.duty} at ${d.event}.`,
+    action: { label: "Open the event", path: (p) => (isUuid(p.event_id) ? `/calendar/${p.event_id}` : "/manage/requests") } },
   venue_cover_at_risk: { audience: "organiser", subject: (d) => `Check site cover: ${d.event}`,
     intro: (d) => `The venue-wide site lead that ${d.event} relies on is no longer confirmed. Please check the event's site cover before it goes ahead.`,
     action: { label: "Open the event", path: (p) => (isUuid(p.event_id) ? `/manage/events/${p.event_id}` : "/manage/coverage") } },
@@ -98,19 +129,21 @@ export const EMAIL_KINDS = Object.keys(SPECS);
 export function renderEmail(kind: string, payload: EmailPayload, opts: { recipientName?: string | null; siteUrl: string }): RenderedEmail | null {
   const spec = SPECS[kind];
   if (!spec) return null;
-  const reasonRaw = kind === "assignment_removed" ? str(payload.removal_reason) : str(payload.event_status_reason);
+  const reasonRaw = kind === "assignment_removed" ? str(payload.removal_reason)
+    : kind === "assignment_cancelled" ? str(payload.reason) : str(payload.event_status_reason);
   const d: Details = {
     duty: oneLine(str(payload.duty)) || "your duty",
     event: oneLine(str(payload.event_title)) || "the event",
     venue: oneLine(str(payload.venue)),
     when: when(payload),
     reason: oneLine(reasonRaw).slice(0, 300),
+    person: oneLine(str(payload.person_name)) || "A volunteer",
   };
   const first = oneLine(str(opts.recipientName)).split(" ")[0];
   const greeting = first ? `Hi ${first},` : "Hello,";
   const subject = oneLine(spec.subject(d)).slice(0, 150);
   const lines: [string, string][] = [];
-  if (spec.audience === "volunteer" || kind === "cancellation_requested") lines.push(["Duty", d.duty]);
+  if ((spec.audience === "volunteer" || kind === "cancellation_requested" || kind.startsWith("assignment_")) && kind !== "availability_request") lines.push([kind.startsWith("assignment_") || kind.startsWith("hub_") || kind === "venue_cover_request" ? "Helping with" : "Duty", d.duty]);
   lines.push(["Event", d.event]);
   if (d.venue) lines.push(["Venue", d.venue]);
   if (d.when) lines.push(["When", d.when]);

@@ -164,23 +164,20 @@ describe("coordinators (venue-scoped)", () => {
     expect(vis).not.toContain(admin.id);
   });
 
-  it("can create a DRAFT event at their venue but not at the other venue, nor create it published", async () => {
-    const ok = await db.asUser(coordMW.uid, async (c) =>
-      (await c.query("insert into events (venue_id, title, event_type, starts_at, ends_at) values ($1, 'OK', 'fixture', now() + interval '1 day', now() + interval '1 day 2 hours') returning id", [mw])).rowCount);
-    expect(ok).toBe(1);
-    await expect(db.asUser(coordMW.uid, (c) =>
-      c.query("insert into events (venue_id, title, event_type, starts_at, ends_at) values ($1, 'No', 'fixture', now() + interval '1 day', now() + interval '1 day 2 hours')", [fw])))
-      .rejects.toThrow(/row-level security/);
-    await expect(db.asUser(coordMW.uid, (c) =>
-      c.query("insert into events (venue_id, title, event_type, starts_at, ends_at, status) values ($1, 'No', 'fixture', now() + interval '1 day', now() + interval '1 day 2 hours', 'published')", [mw])))
-      .rejects.toThrow(/permission denied/);
+  // Since the Hub hardening migration, nobody writes events directly: all event changes go through
+  // hub_create_event / hub_update_event / hub_set_event_status (tested in hub-calendar).
+  it("cannot insert events directly at any venue", async () => {
+    for (const v of [mw, fw]) {
+      await expect(db.asUser(coordMW.uid, (c) =>
+        c.query("insert into events (venue_id, title, event_type, starts_at, ends_at) values ($1, 'No', 'fixture', now() + interval '1 day', now() + interval '1 day 2 hours')", [v])))
+        .rejects.toThrow(/permission denied/);
+    }
   });
 
-  it("cannot edit another venue's event, nor change times/status directly", async () => {
-    const n = await db.asUser(coordMW.uid, async (c) => (await c.query("update events set title = 'x' where id = $1", [pubFW])).rowCount);
-    expect(n).toBe(0);
-    await expect(db.asUser(coordMW.uid, (c) => c.query("update events set starts_at = now() where id = $1", [pubMW]))).rejects.toThrow(/permission denied/);
-    await expect(db.asUser(coordMW.uid, (c) => c.query("update events set status = 'cancelled' where id = $1", [pubMW]))).rejects.toThrow(/permission denied/);
+  it("cannot update events directly (title, times or status)", async () => {
+    for (const sql of ["update events set title = 'x' where id = $1", "update events set starts_at = now() where id = $1", "update events set status = 'cancelled' where id = $1"]) {
+      await expect(db.asUser(coordMW.uid, (c) => c.query(sql, [pubMW]))).rejects.toThrow(/permission denied/);
+    }
   });
 
   it("cannot change roles, venue scopes, authorisations or templates", async () => {
