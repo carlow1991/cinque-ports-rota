@@ -56,4 +56,11 @@ const tm = main.slice(tmAt, clubAt), club = main.slice(clubAt);
 check("team list shows the team, league/division, manager and coach post", tm.includes("Reserves (demo)") && tm.includes("Kent County League, Division One East") && tm.includes("Scott (demo) (Manager)") && tm.includes("Reserves Coach"));
 check("club list holds only the non-playing roles", club.includes("Club Secretary (demo)") && !club.includes("Reserves Coach"));
 check("Roles tab fits a phone", await noHorizontalScroll(kel));
+// A team post held by the team's own listed manager isn't repeated on the team card.
+const [{ id: mgrPost }] = await q<{ id: string }>("insert into club_positions (title, kind, team_id) values ('Reserves Manager (post)', 'team', $1) returning id", [team.id]);
+await q("insert into position_holders (club_position_id, person_id, start_date) values ($1, $2, current_date - 1)", [mgrPost, scott]);
+await kel.reload();
+await kel.getByRole("heading", { name: "Team management" }).waitFor({ timeout: 15_000 });
+const main2 = (await kel.textContent("main")) ?? "";
+check("the manager isn't listed twice on the team card", !main2.includes("Reserves Manager (post)") && main2.includes("Scott (demo) (Manager)"));
 await finish();

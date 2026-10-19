@@ -21,7 +21,7 @@ export function TeamManagementList({ teams, positions, linkRoles = false }: { te
           <p className="font-semibold">{t.team}</p>
           {t.league || t.division ? <p className="text-xs text-ink-muted">{teamLine({ league: t.league, division: t.division })}</p> : null}
           <p className="mt-1 text-sm">{t.staff.length ? t.staff.map((s) => `${s.name} (${s.role})`).join(", ") : <span className="text-ink-muted">No staff recorded</span>}</p>
-          <RoleRows roles={byTeam.get(t.team_id) ?? []} link={linkRoles} />
+          <RoleRows roles={(byTeam.get(t.team_id) ?? []).filter((p) => !alreadyListed(p, t))} link={linkRoles} />
         </li>
       ))}
       {general.length ? (
@@ -32,6 +32,13 @@ export function TeamManagementList({ teams, positions, linkRoles = false }: { te
       ) : null}
     </ul>
   );
+}
+
+/** A filled team post held only by people already listed as that team's staff adds nothing; show it only
+ *  when it tells you something more (recruiting, vacant, someone else, or not in use). */
+function alreadyListed(p: Position, t: TeamStaff): boolean {
+  const staff = new Set(t.staff.map((s) => s.person_id));
+  return p.active && p.holders.length > 0 && recruitingLabels(p).length === 0 && p.holders.every((h) => staff.has(h.person_id));
 }
 
 function RoleRows({ roles, link }: { roles: Position[]; link: boolean }) {
