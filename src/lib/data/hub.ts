@@ -27,10 +27,10 @@ export async function loadDirectory(): Promise<DirectoryRow[]> {
   return must(await sb.rpc("hub_directory"), "the directory");
 }
 
-export type Team = { id: string; name: string; active: boolean };
+export type Team = { id: string; name: string; active: boolean; league?: string | null; division?: string | null };
 export async function loadTeams(): Promise<Team[]> {
   const sb = await createClient();
-  return must(await sb.from("teams").select("id, name, active").order("name"), "teams");
+  return must(await sb.from("teams").select("id, name, active, league, division").order("name"), "teams");
 }
 
 export type Venue = { id: string; code: string; name: string; short_name: string; active: boolean; address: string | null };
@@ -41,7 +41,7 @@ export async function loadVenues(): Promise<Venue[]> {
 
 export type PersonFull = {
   id: string; full_name: string; display_name: string | null; email_normalized: string | null; phone_normalized: string | null;
-  preferred_contact_channel: string | null; lifecycle_status: string; routine_requests_enabled: boolean; involvement: string[];
+  contact_channels: string[]; lifecycle_status: string; routine_requests_enabled: boolean; involvement: string[];
   directory_visibility: string; share_email_with_members: boolean; share_phone_with_members: boolean; is_under_18: boolean;
   notes_private: string | null; created_at: string;
 };
@@ -56,7 +56,7 @@ export type Preferences = {
 };
 export type UsualSlot = { day_of_week: number; daypart: string };
 
-const PERSON_COLS = "id, full_name, display_name, email_normalized, phone_normalized, preferred_contact_channel, lifecycle_status, routine_requests_enabled, involvement, directory_visibility, share_email_with_members, share_phone_with_members, is_under_18, created_at";
+const PERSON_COLS = "id, full_name, display_name, email_normalized, phone_normalized, contact_channels, lifecycle_status, routine_requests_enabled, involvement, directory_visibility, share_email_with_members, share_phone_with_members, is_under_18, created_at";
 
 /**
  * Full record (admins, or the person themselves: RLS returns nothing otherwise).
@@ -111,7 +111,7 @@ function normalisePrefs(raw: unknown): Preferences | null {
 }
 
 export type Position = {
-  id: string; title: string; department: string | null; public_summary: string | null; responsibilities: string | null;
+  id: string; title: string; kind: "club" | "team"; team_id: string | null; team: string | null; league: string | null; division: string | null; department: string | null; public_summary: string | null; responsibilities: string | null;
   estimated_commitment: string | null; work_location_preference: string | null; skills_required: string[]; skills_desirable: string[];
   interest_tags: string[]; training_available: boolean; requires_external_safeguarding_review: boolean; public_visible: boolean; active: boolean;
   seeking_replacement: boolean; seeking_additional_help: boolean; publish_vacancy: boolean;
@@ -122,6 +122,15 @@ export type Position = {
   interests: { id: string; person_id: string | null; application_id: string | null; name: string | null; stage: string; note: string | null; updated_at: string }[] | null;
   my_interest: string | null;
 };
+export type TeamStaff = { team_id: string; team: string; league: string | null; division: string | null; staff: { person_id: string; name: string; role: string }[] };
+/** Each active team with its league/division and current staff (from team roles). */
+export async function loadTeamStaff(): Promise<TeamStaff[]> {
+  const sb = await createClient();
+  const { data, error } = await sb.rpc("hub_team_staff");
+  if (error) throw new Error("Couldn't load team management.");
+  return (data ?? []) as TeamStaff[];
+}
+
 export async function loadPositions(): Promise<Position[]> {
   const sb = await createClient();
   const { data, error } = await sb.rpc("hub_positions");

@@ -10,7 +10,7 @@ import { log } from "@/lib/log";
  * session, so RLS applies. Audited. Never cached.
  */
 const EXPORTS: Record<string, { table: string; columns: string[]; order: string }> = {
-  people: { table: "people", order: "full_name", columns: ["id", "full_name", "display_name", "email_normalized", "phone_normalized", "preferred_contact_channel",
+  people: { table: "people", order: "full_name", columns: ["id", "full_name", "display_name", "email_normalized", "phone_normalized", "contact_channels",
     "involvement", "lifecycle_status", "routine_requests_enabled", "directory_visibility", "share_email_with_members", "share_phone_with_members", "is_under_18", "created_at"] },
   applications: { table: "volunteer_applications", order: "created_at", columns: ["id", "created_at", "stage", "full_name", "email_normalized", "phone_normalized",
     "contact_preference", "existing_club_connection", "interests", "unsure_role", "strengths", "willing_to_learn", "commitment_bucket", "commitment_pattern",

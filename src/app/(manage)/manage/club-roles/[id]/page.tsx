@@ -9,9 +9,9 @@ import { Badge, Card, Checkbox, Field, Input, Notice, Select } from "@/component
 import { PositionFields } from "@/components/hub/position-fields";
 import { HUB_ADMIN } from "@/lib/auth/access";
 import { requireLevel } from "@/lib/auth/dal";
-import { loadPositions } from "@/lib/data/hub";
+import { loadPositions, loadTeams } from "@/lib/data/hub";
 import { loadPicker } from "@/lib/data/hub-involvement";
-import { INTEREST_STAGES, OCCUPANCY_LABEL, recruitingLabels } from "@/lib/domain/positions";
+import { INTEREST_STAGES, OCCUPANCY_LABEL, recruitingLabels, teamLine } from "@/lib/domain/positions";
 import { addHolderAction, endHolderAction, savePositionAction, setInterestAction, setRecruitingAction } from "../actions";
 
 export const metadata: Metadata = { title: "Club role" };
@@ -24,7 +24,7 @@ async function ClubRole({ params }: PageProps<"/manage/club-roles/[id]">) {
   await requireLevel(HUB_ADMIN);
   const { id } = await params;
   if (!z.uuid().safeParse(id).success) notFound();
-  const [positions, people] = await Promise.all([loadPositions(), loadPicker()]);
+  const [positions, people, teams] = await Promise.all([loadPositions(), loadPicker(), loadTeams()]);
   const p = positions.find((x) => x.id === id);
   if (!p) notFound();
   return (
@@ -35,6 +35,7 @@ async function ClubRole({ params }: PageProps<"/manage/club-roles/[id]">) {
         <Badge tone={p.occupancy === "vacant" ? "warn" : "neutral"}>{OCCUPANCY_LABEL[p.occupancy]}</Badge>
         {recruitingLabels(p).map((l) => <Badge key={l} tone="info">{l}</Badge>)}
       </div>
+      <p className="text-sm text-ink-muted">{p.kind === "team" ? `Team management${p.team ? ` — ${teamLine(p)}` : ""}` : "Club role (non-playing)"}</p>
       {p.requires_external_safeguarding_review ? <Notice tone="warn">This role needs external checks. The Hub doesn&apos;t record them; appointments follow the club&apos;s and the FA&apos;s own process.</Notice> : null}
 
       <Card title="Recruiting">
@@ -110,7 +111,7 @@ async function ClubRole({ params }: PageProps<"/manage/club-roles/[id]">) {
       <Card title="Details">
         <ActionForm action={savePositionAction} submitLabel="Save details" trackChanges>
           <input type="hidden" name="position_id" value={p.id} />
-          <PositionFields p={p} people={people} />
+          <PositionFields p={p} people={people} teams={teams} />
         </ActionForm>
       </Card>
     </section>

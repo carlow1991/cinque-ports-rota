@@ -16,6 +16,7 @@ Organisers also see **Awaiting response** (asked, not replied, or invited and no
 - *Manage → People → + Person*: a name is enough. Email and phone are optional.
 - Two separate switches, both **off** by default: **Send portal invitation now** (needs an email) and **Include in suggested availability recipients** (only pre-ticks them later).
 - Invite someone later from their record: *Portal access → Send portal invitation*. If email is off or fails, it says **Invitation not sent** — nothing pretends it worked.
+- Contact: tick every way the person is happy to be contacted (email, phone call, text, WhatsApp).
 - Teams: add a team role (Manager, Coach…) and tick **Expected at this team's events**. End a role with an end date; history stays.
 - Contact details are hidden from members unless the person chooses to share them. Under-18s are never listed to members and can't be invited in this version.
 - *Remove their details (on request)*: for a leaver who asks to be forgotten. Irreversible; events keep "Former volunteer".
@@ -38,10 +39,11 @@ Organisers also see **Awaiting response** (asked, not replied, or invited and no
 For an event with no recorded finish, cover is only shown as **at kick-off**.
 
 ## Club roles
-*Manage → Club roles*: who holds what (one person can hold several; a role can be shared). **Recruiting** is separate from **who holds it**: a filled role can look for a successor or extra help without removing the holder. Tick **Can appear on the public volunteer page** for roles you want advertised; only recruiting roles appear there, without any names or contact details. Track interest: interested → contacted → discussion → shadowing → handover. Nothing here is a formal club or FA appointment.
+*Manage → Club roles* has two lists. **Club roles (non-playing)** — secretary, groundsman, welfare and so on. **Team management** — each team with its league and division, its staff (from each person's team roles on their People record) and any team-management posts you add here (choose *Type of role: Team management* and the team, e.g. to advertise a coach vacancy).
+Who holds what (one person can hold several; a role can be shared). **Recruiting** is separate from **who holds it**: a filled role can look for a successor or extra help without removing the holder. Tick **Can appear on the public volunteer page** for roles you want advertised; only recruiting roles appear there, without any names or contact details. Track interest: interested → contacted → discussion → shadowing → handover. Nothing here is a formal club or FA appointment.
 
 ## Applications (public form)
 *Manage → Applications*: offers of help from `/volunteer/apply`. Applicants have no login and haven't been invited. Each shows their answers, a **possible duplicate** flag (compare side by side before linking — nothing is merged automatically), and **suggested roles** with the reasons. Move them through New → In review → Contacted → Trial → Accepted into pool → Closed, set a follow-up date, add notes. **Add to directory** creates a person (no login, no invite); invite them from their record if wanted. Delete on request.
 
 ## Settings (administrators)
-Club contact email (shown on the public pages), accept applications on/off, application review period (when the club agrees one), day-before reminders, email start/pause, venues, teams, and CSV downloads. Download, store securely, delete old copies.
+Teams: name, league and division (all editable later). Club contact email (shown on the public pages), accept applications on/off, application review period (when the club agrees one), day-before reminders, email start/pause, venues, teams, and CSV downloads. Download, store securely, delete old copies.

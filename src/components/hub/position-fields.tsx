@@ -1,13 +1,25 @@
 import { Checkbox, Field, Input, Select, Textarea } from "@/components/ui";
 import { ALL_INTERESTS } from "@/lib/domain/hub-tags";
-import type { Position } from "@/lib/data/hub";
+import type { Position, Team } from "@/lib/data/hub";
+import { ROLE_KIND } from "@/lib/domain/positions";
 import type { PickerRow } from "@/lib/data/hub-involvement";
 
-export function PositionFields({ p, people }: { p?: Position; people: PickerRow[] }) {
+export function PositionFields({ p, people, teams }: { p?: Position; people: PickerRow[]; teams: Team[] }) {
   return (
     <>
       <div className="grid gap-3 sm:grid-cols-2">
-        <Field label="Title (required)"><Input name="title" required maxLength={100} defaultValue={p?.title ?? ""} /></Field>
+        <Field label="Title (required)"><Input name="title" required maxLength={100} defaultValue={p?.title ?? ""} placeholder="e.g. Club Secretary, or U12 Coach" /></Field>
+        <Field label="Type of role">
+          <Select name="kind" defaultValue={p?.kind ?? "club"}>
+            {ROLE_KIND.map((k) => <option key={k.code} value={k.code}>{k.label}</option>)}
+          </Select>
+        </Field>
+        <Field label="Team (team-management roles only)" hint="Leave blank for a role across several teams.">
+          <Select name="team_id" defaultValue={p?.team_id ?? ""}>
+            <option value="">No particular team</option>
+            {teams.filter((t) => t.active || t.id === p?.team_id).map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
+          </Select>
+        </Field>
         <Field label="Department"><Input name="department" maxLength={60} defaultValue={p?.department ?? ""} placeholder="e.g. Administration" /></Field>
       </div>
       <Field label="Short public description" hint="Shown on the public volunteer page if you advertise the role. No names or contact details.">

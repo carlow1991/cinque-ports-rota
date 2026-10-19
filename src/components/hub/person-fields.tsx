@@ -1,6 +1,7 @@
 import { Checkbox, Field, Input, Select, Textarea } from "@/components/ui";
 import { ALL_INTERESTS, COMMITMENT_BUCKETS, COMMITMENT_PATTERNS, DAYPARTS, DAYS, INVOLVEMENT, LOCATION_PREFS, STRENGTHS, formatPhone } from "@/lib/domain/hub-tags";
 import type { PersonFull, Preferences, UsualSlot } from "@/lib/data/hub";
+import { ContactChannelsField } from "@/components/hub/contact-channels";
 
 /** Name and contact: always visible on Add Person (spec 03 /manage/people/new). */
 export function PersonCoreFields({ p }: { p?: Partial<PersonFull> }) {
@@ -38,14 +39,7 @@ export function PersonMoreFields({ p, open = false }: { p?: Partial<PersonFull>;
         <Field label="Name shown in the Hub" hint="Leave blank to use their full name.">
           <Input name="display_name" maxLength={80} defaultValue={p?.display_name ?? ""} autoComplete="off" />
         </Field>
-        <Field label="Preferred way to contact">
-          <Select name="preferred_contact_channel" defaultValue={p?.preferred_contact_channel ?? ""}>
-            <option value="">No preference</option>
-            <option value="email">Email</option>
-            <option value="phone">Phone call</option>
-            <option value="whatsapp">WhatsApp</option>
-          </Select>
-        </Field>
+        <ContactChannelsField selected={p?.contact_channels} legend="Ways they're happy to be contacted" />
         <Field label="Directory listing" hint="Even when listed, contact details stay hidden from members unless shared below.">
           <Select name="directory_visibility" defaultValue={p?.directory_visibility ?? "members"}>
             <option value="members">List name, teams and club roles to signed-in members</option>

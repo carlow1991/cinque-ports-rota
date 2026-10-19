@@ -9,7 +9,7 @@ import type { TemplateItem } from "@/lib/domain/templates";
  */
 
 export type Venue = { id: string; code: string; name: string; short_name: string; address: string | null; active: boolean };
-export type Team = { id: string; name: string; active: boolean };
+export type Team = { id: string; name: string; active: boolean; league?: string | null; division?: string | null };
 export type DutyType = { id: string; code: string; name: string; description: string | null; requires_authorisation: boolean; active: boolean; sort_order: number };
 export type Template = { id: string; code: string; name: string; description: string | null; event_type: string; venue_id: string | null; active: boolean; items: TemplateItem[] };
 
@@ -38,7 +38,7 @@ export async function loadManagedVenueIds(isAdmin: boolean, volunteerId: string)
 
 export async function loadTeams(): Promise<Team[]> {
   const sb = await createClient();
-  return must(await sb.from("teams").select("id, name, active").order("name"), "teams");
+  return must(await sb.from("teams").select("id, name, active, league, division").order("name"), "teams");
 }
 
 export async function loadDutyTypes(): Promise<DutyType[]> {

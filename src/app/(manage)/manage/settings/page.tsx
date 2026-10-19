@@ -99,6 +99,8 @@ async function Settings({ searchParams }: { searchParams: PageProps<"/manage/set
               <ActionForm action={saveTeamAction} submitLabel="Save" variant="secondary" className="flex flex-wrap items-end gap-2">
                 <input type="hidden" name="team_id" value={t.id} />
                 <Field label="Team"><Input name="name" defaultValue={t.name} required maxLength={80} /></Field>
+                <Field label="League"><Input name="league" defaultValue={t.league ?? ""} maxLength={80} /></Field>
+                <Field label="Division"><Input name="division" defaultValue={t.division ?? ""} maxLength={60} /></Field>
                 <Checkbox name="active" defaultChecked={t.active} label="Active" />
               </ActionForm>
             </li>
@@ -106,6 +108,8 @@ async function Settings({ searchParams }: { searchParams: PageProps<"/manage/set
         </ul>
         <ActionForm action={saveTeamAction} submitLabel="Add team" className="mt-3 flex flex-wrap items-end gap-2">
           <Field label="New team"><Input name="name" required maxLength={80} placeholder="e.g. Reserves" /></Field>
+          <Field label="League"><Input name="league" maxLength={80} placeholder="e.g. Kent County League" /></Field>
+          <Field label="Division"><Input name="division" maxLength={60} placeholder="e.g. Division One East" /></Field>
         </ActionForm>
       </Card>
 

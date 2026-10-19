@@ -83,3 +83,10 @@ See `stage-0-audit.md`.
 - Live database: all 8 Hub changes applied by Carl in the SQL Editor (`docs/sql/deploy-hub-20261019.sql`, one transaction); migration history aligned (28 rows, repo names). Checked afterwards: 1 person / 1 linked admin carried over, fixture and its 4 shifts kept, Freemens Way inactive, RLS on every table, anon can call nothing, only the 9 expected secret-key functions, admin notes column-withheld, email still paused, outbox empty.
 - App: `hub/volunteer-hub` merged to `main` (858d0bf); Vercel production build succeeded. Public pages and sign-in load; signed-in pages redirect to sign-in.
 - Outstanding: `SUPABASE_SECRET_KEY` is not reaching the app in Vercel Production (the public roles list shows "not available" and the database receives no calls), so the public form can't save applications until it's added and the app redeployed.
+
+## Amendments — 19 Oct 2026 (branch `hub/amendments-contact-roles-teams`)
+**Migration** `20261019000900_hub_contact_roles_teams.sql` (rollback `docs/sql/rollback-20261019000900.sql`, tested; deploy copy `docs/sql/deploy-hub-20261019-amendments.sql`).
+- Several contact methods per person (`people.contact_channels`: email, phone call, text, WhatsApp) on My Profile and the admin person form; existing single choice carried over.
+- Club roles have a type: **club (non-playing)** or **team management**, optionally tied to a team. New `hub_team_staff()` lists each team's current staff (members see only listed adults; no contacts). Manage → Club roles, the Roles tab and the public volunteer page show the two groups separately.
+- Teams record **league** and **division** (Settings → Teams), shown with team-management roles.
+**Tests** `tests/db/hub-amendments.db.test.ts` 11; `tests/e2e/hub-amendments.mts` 9/9; full suite 625 tests, all E2E stages + demo green.
