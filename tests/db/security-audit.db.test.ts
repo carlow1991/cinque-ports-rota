@@ -101,7 +101,7 @@ describe("signed-in users (authenticated): exact grant snapshot; RLS narrows eve
       { table_name: "club_settings", privilege_type: "UPDATE", cols: "reminder_day_before,withdrawal_cutoff_hours" },
       { table_name: "event_shifts", privilege_type: "INSERT", cols: "approval_required,duty_type_id,ends_at,event_id,instructions,required_count,signup_enabled,source_template_item_id,starts_at" },
       { table_name: "event_shifts", privilege_type: "UPDATE", cols: "instructions" },
-      { table_name: "people", privilege_type: "SELECT", cols: "created_at,created_by_person_id,directory_visibility,display_name,email_normalized,full_name,id,involvement,is_under_18,lifecycle_status,phone_normalized,preferred_contact_channel,routine_requests_enabled,share_email_with_members,share_phone_with_members,updated_at" },
+      { table_name: "people", privilege_type: "SELECT", cols: "contact_channels,created_at,created_by_person_id,directory_visibility,display_name,email_normalized,full_name,id,involvement,is_under_18,lifecycle_status,phone_normalized,preferred_contact_channel,routine_requests_enabled,share_email_with_members,share_phone_with_members,updated_at" },
       { table_name: "position_holders", privilege_type: "SELECT", cols: "capacity_label,club_position_id,created_at,end_date,id,person_id,start_date" },
       { table_name: "position_interests", privilege_type: "SELECT", cols: "application_id,created_at,id,person_id,position_id,stage,updated_at" },
       { table_name: "volunteers", privilege_type: "UPDATE", cols: "display_name,phone,preferred_venue_id" },

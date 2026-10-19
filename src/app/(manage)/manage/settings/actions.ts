@@ -42,14 +42,19 @@ export async function saveVenueAction(_p: ActionResult | null, fd: FormData): Pr
 
 export async function saveTeamAction(_p: ActionResult | null, fd: FormData): Promise<ActionResult> {
   await requireLevel(HUB_ADMIN);
-  const name = text(1, 80, "Enter a team name.").safeParse(fd.get("name"));
-  if (!name.success) return fail(firstIssue(name.error.issues));
+  const parsed = z.object({
+    name: text(1, 80, "Enter a team name."),
+    league: z.string().trim().max(80, "League names can be up to 80 characters."),
+    division: z.string().trim().max(60, "Division names can be up to 60 characters."),
+  }).safeParse({ name: fd.get("name"), league: fd.get("league") ?? "", division: fd.get("division") ?? "" });
+  if (!parsed.success) return fail(firstIssue(parsed.error.issues));
+  const team = { name: parsed.data.name, league: parsed.data.league || null, division: parsed.data.division || null };
   const sb = await createClient();
   const id = fd.get("team_id");
   if (typeof id === "string" && id) {
-    return done(await sb.from("teams").update({ name: name.data, active: fd.get("active") === "on" }, { count: "exact" }).eq("id", id), "Team saved.");
+    return done(await sb.from("teams").update({ ...team, active: fd.get("active") === "on" }, { count: "exact" }).eq("id", id), "Team saved.");
   }
-  return done(await sb.from("teams").insert({ name: name.data }, { count: "exact" }), "Team added.");
+  return done(await sb.from("teams").insert(team, { count: "exact" }), "Team added.");
 }
 
 const dutySchema = z.object({

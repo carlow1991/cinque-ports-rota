@@ -13,9 +13,9 @@ export async function updateMyProfileAction(_p: ActionResult | null, fd: FormDat
   const parsed = z.object({
     display_name: z.string().trim().max(80, "Names can be up to 80 characters."),
     phone: z.string().trim().max(30, "That phone number is too long."),
-    preferred_contact_channel: z.enum(["", "email", "phone", "whatsapp"]),
+    contact_channels: z.array(z.enum(["email", "phone", "text", "whatsapp"], { message: "Choose from the listed ways to contact you." })).max(4),
   }).safeParse({
-    display_name: fd.get("display_name") ?? "", phone: fd.get("phone") ?? "", preferred_contact_channel: fd.get("preferred_contact_channel") ?? "",
+    display_name: fd.get("display_name") ?? "", phone: fd.get("phone") ?? "", contact_channels: [...new Set(fd.getAll("contact_channels").map(String))],
   });
   if (!parsed.success) return fail(firstIssue(parsed.error.issues));
   const sb = await createClient();

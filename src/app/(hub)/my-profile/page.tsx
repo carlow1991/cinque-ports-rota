@@ -2,7 +2,8 @@ import type { Metadata } from "next";
 import { Suspense } from "react";
 import { ActionForm } from "@/components/action-form";
 import { PageLoading } from "@/components/app-header";
-import { Card, Checkbox, Field, Input, Select } from "@/components/ui";
+import { Card, Checkbox, Field, Input } from "@/components/ui";
+import { ContactChannelsField } from "@/components/hub/contact-channels";
 import { PreferencesFields } from "@/components/hub/person-fields";
 import { requirePerson } from "@/lib/auth/dal";
 import { loadPerson } from "@/lib/data/hub";
@@ -32,11 +33,7 @@ async function MyProfile() {
           <Field label="Phone (optional)" hint="Organisers can see it. Members only see it if you share it below.">
             <Input name="phone" type="tel" inputMode="tel" defaultValue={formatPhone(p.phone_normalized)} maxLength={30} autoComplete="tel" />
           </Field>
-          <Field label="Best way to contact you">
-            <Select name="preferred_contact_channel" defaultValue={p.preferred_contact_channel ?? ""}>
-              <option value="">No preference</option><option value="email">Email</option><option value="phone">Phone call</option><option value="whatsapp">WhatsApp</option>
-            </Select>
-          </Field>
+          <ContactChannelsField selected={p.contact_channels} legend="Ways you're happy to be contacted" />
           {p.is_under_18 ? null : (
             <>
               <Checkbox name="share_email_with_members" defaultChecked={p.share_email_with_members} label="Show my email to other signed-in members" />

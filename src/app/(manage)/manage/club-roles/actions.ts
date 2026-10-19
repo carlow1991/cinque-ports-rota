@@ -23,7 +23,9 @@ export async function savePositionAction(_p: ActionResult | null, fd: FormData):
   const contact = str(fd, "recruiting_contact_person_id");
   const sb = await createClient();
   const { data, error } = await sb.rpc("hub_save_position", { p_id: id?.data ?? null, p: {
-    title, department: str(fd, "department"), public_summary: str(fd, "public_summary"), responsibilities: str(fd, "responsibilities"),
+    title, kind: str(fd, "kind") === "team" ? "team" : "club",
+    team_id: str(fd, "kind") === "team" && uuid.safeParse(str(fd, "team_id")).success ? str(fd, "team_id") : null,
+    department: str(fd, "department"), public_summary: str(fd, "public_summary"), responsibilities: str(fd, "responsibilities"),
     estimated_commitment: str(fd, "estimated_commitment"), work_location_preference: str(fd, "work_location_preference"),
     skills_required: list(fd, "skills_required"), skills_desirable: list(fd, "skills_desirable"), interest_tags: fd.getAll("interest_tags").map(String),
     training_available: fd.get("training_available") === "on", requires_external_safeguarding_review: fd.get("requires_external_safeguarding_review") === "on",

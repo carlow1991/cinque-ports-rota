@@ -1,4 +1,15 @@
 /** Club roles: occupancy and recruiting are separate facts and are always shown separately. */
+export const ROLE_KIND = [
+  { code: "club", label: "Club role (non-playing)" },
+  { code: "team", label: "Team management" },
+] as const;
+
+/** "Reserves · Kent County League, Division One" — league and division only when recorded. */
+export function teamLine(t: { team?: string | null; league?: string | null; division?: string | null }): string {
+  const comp = [t.league, t.division].filter(Boolean).join(", ");
+  return [t.team, comp].filter(Boolean).join(" · ");
+}
+
 export const OCCUPANCY_LABEL = { vacant: "Vacant", filled: "Filled", shared: "Shared" } as const;
 
 export function recruitingLabels(p: { seeking_replacement: boolean; seeking_additional_help: boolean; publish_vacancy: boolean; occupancy: string }): string[] {

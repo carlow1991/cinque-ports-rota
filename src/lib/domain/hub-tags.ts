@@ -105,6 +105,18 @@ export const LOCATION_PREFS = [
   { code: "either", label: "Either" },
 ] as const;
 
+/** Ways a person is happy to be contacted (any number of them). */
+export const CONTACT_CHANNELS = [
+  { code: "email", label: "Email" },
+  { code: "phone", label: "Phone call" },
+  { code: "text", label: "Text message" },
+  { code: "whatsapp", label: "WhatsApp" },
+] as const;
+export const CONTACT_CHANNEL_CODES: string[] = CONTACT_CHANNELS.map((c) => c.code);
+export function contactChannelsLabel(codes: readonly string[] | null | undefined): string {
+  return (codes ?? []).map((c) => labelFor(CONTACT_CHANNELS, c)).join(", ");
+}
+
 export const DAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"] as const;
 export const DAYPARTS = [
   { code: "morning", label: "Morning" },

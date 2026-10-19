@@ -15,7 +15,7 @@ export function serviceClient() {
 }
 
 export type PublicOpportunity = {
-  id: string; title: string; department: string | null; summary: string | null; responsibilities: string | null; commitment: string | null;
+  id: string; title: string; kind: "club" | "team"; team: string | null; league: string | null; division: string | null; department: string | null; summary: string | null; responsibilities: string | null; commitment: string | null;
   location: "onsite" | "remote" | "either" | null; skills: string[]; training_available: boolean; checks_needed: boolean;
   reason: "successor" | "vacant" | "extra_help";
 };

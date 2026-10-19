@@ -14,9 +14,9 @@ No passwords.
 **People** is the club directory: names, teams and club roles. Contact details only appear if that person
 chose to share them.
 
-**Roles** shows club roles looking for help or a successor. Tap **I'm interested** and someone will be in touch.
+**Roles** shows roles looking for help or a successor, then two lists: **Team management** (each team with its league and division, and who runs it) and **Club roles** (the non-playing roles that keep the club going). Tap **I'm interested** and someone will be in touch.
 
-**Me (My Profile):** change the name shown, your phone number, whether other members can see your email or
+**Me (My Profile):** change the name shown, your phone number, the ways you're happy to be contacted (tick as many as you like — e.g. WhatsApp and email), whether other members can see your email or
 phone, what you'd enjoy helping with, and when you're usually free (a guide only — it never signs you up).
 
 **Emails** only come when someone asks you to help, when something you agreed to changes, and a reminder

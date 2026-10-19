@@ -3,8 +3,8 @@ import Link from "next/link";
 import { Suspense } from "react";
 import { Badge, Card } from "@/components/ui";
 import { PageLoading } from "@/components/app-header";
-import { loadPublicOpportunities } from "@/lib/supabase/service";
-import { LOCATION_LABEL, PUBLIC_REASON_LABEL } from "@/lib/domain/positions";
+import { loadPublicOpportunities, type PublicOpportunity } from "@/lib/supabase/service";
+import { LOCATION_LABEL, PUBLIC_REASON_LABEL, teamLine } from "@/lib/domain/positions";
 
 export const metadata: Metadata = { title: "Volunteer with Cinque Ports FC", description: "Help at Cinque Ports FC — no football experience needed." };
 
@@ -31,15 +31,29 @@ async function Roles() {
       <h2 id="roles" className="text-xl font-bold text-club">Roles we&apos;re looking for help with</h2>
       {roles === null ? <p className="text-sm text-ink-muted">The list of roles isn&apos;t available right now — you can still offer to help.</p>
         : roles.length === 0 ? <p className="text-sm text-ink-muted">No specific roles are advertised at the moment — you can still offer to help.</p>
-        : roles.map((r) => (
-          <Card key={r.id} title={r.title}>
+        : (["team", "club"] as const).map((kind) => {
+          const list = roles.filter((r) => (r.kind ?? "club") === kind);
+          if (!list.length) return null;
+          return (
+            <div key={kind} className="space-y-3">
+              <h3 className="text-lg font-semibold text-club">{kind === "team" ? "Coaching and team management" : "Helping run the club"}</h3>
+              {list.map((r) => <RoleCard key={r.id} r={r} />)}
+            </div>
+          );
+        })}
+    </section>
+  );
+}
+
+function RoleCard({ r }: { r: PublicOpportunity }) {
+  return (
+          <Card title={r.title}>
+            {r.kind === "team" && r.team ? <p className="text-sm font-semibold">{teamLine(r)}</p> : null}
             <p><Badge tone="info">{PUBLIC_REASON_LABEL[r.reason]}</Badge></p>
             {r.summary ? <p className="mt-2 text-sm">{r.summary}</p> : null}
             <p className="mt-1 text-xs text-ink-muted">{[r.department, r.commitment, r.location ? LOCATION_LABEL[r.location] : null, r.training_available ? "Training offered" : null,
               r.checks_needed ? "Club and FA checks apply" : null].filter(Boolean).join(" · ")}</p>
             <Link className="mt-2 inline-flex min-h-11 items-center font-semibold text-club-blue underline" href={`/volunteer/apply?role=${r.id}`}>I&apos;m interested</Link>
           </Card>
-        ))}
-    </section>
   );
 }
