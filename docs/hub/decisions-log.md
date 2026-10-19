@@ -3,7 +3,7 @@
 ## A. Waiting for Carl (nothing below has been done to the live system)
 | # | Decision | Default on the branch |
 |---|---|---|
-| D1 | Apply the 8 Hub migrations to the live project (align migration history first — runbook §2) | Not applied. Preflight on live: 0 problems. |
+| D1 | Apply the 8 Hub migrations to the live project (align migration history first — runbook §2) | **Done 19 Oct 2026.** |
 | D2 | Staging Supabase project (free tier) or accept local rehearsal | Local Postgres + fake Supabase only. |
 | D3 | Freemens Way inactive | Migration sets it inactive; history kept; reactivate in Settings. |
 | D4 | Real people, emails, team ↔ manager links (Scott, Danny, Matty) | Only fictional demo data (`supabase/seed-hub-demo.sql`). |
