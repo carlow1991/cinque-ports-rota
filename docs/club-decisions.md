@@ -30,3 +30,18 @@ Everything the software can do is done and tested. What's left needs a person: a
 
 ## C. Dashboard steps only a person can do (in `deployment-checklist.md`)
 Create the projects and Vercel import; copy keys into Vercel (never into chat); Supabase Auth settings (sign-ups off, URLs, email templates, SMTP); DNS records; the schedule (Vercel `vercel.json` or the Supabase SQL); inviting the first two admins with the script; switching email on after the admin test send.
+
+## D. Volunteer Hub redesign (Oct 2026) — nothing applied to the live system yet
+| # | Decision | Default on the branch |
+|---|---|---|
+| D1 | Apply the 7 Hub database changes to the live project (fix the migration history first) | Not applied; read-only preflight on live found 0 problems |
+| D2 | Staging project, or accept the local rehearsal | Local test databases only |
+| D3 | Freemens Way inactive (history kept) | Set inactive by the Stage 2 change |
+| D4 | Real people, emails, and which teams Scott, Danny and Matty manage | Fictional demo data only |
+| D5 | Privacy notice, retention period, under-18 route, club contact email | Draft notice marked as draft; no retention period set |
+| D6 | Which club roles recruit and which appear publicly | All off |
+| D7 | Which events ask for availability and who is routinely asked | Off by default |
+| D8 | Administrators and coordinators | Existing admin only |
+| D9 | Email domain and switching email on | Same as A3 above |
+| D10 | Merge the `hub/volunteer-hub` branch and deploy | Not merged or deployed |
+Details: `docs/hub/decisions-log.md`, `docs/hub/deployment-runbook.md`.
