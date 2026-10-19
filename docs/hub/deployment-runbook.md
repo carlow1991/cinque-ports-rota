@@ -26,7 +26,7 @@ re-run 12 migrations.
 
 ## 3. Staging first (recommended)
 1. New Supabase project "Cinque Ports Rota (staging)", same region.
-2. `supabase link --project-ref <staging>` then `supabase db push` (all 27 migrations).
+2. `supabase link --project-ref <staging>` then `supabase db push` (all 28 migrations).
 3. Vercel: a Preview environment pointing at staging (`APP_ENV=staging`, email allow-list = your own addresses).
 4. Bootstrap yourself: `node --env-file=.env.staging scripts/invite-volunteer.mts you@club "Your Name" admin`.
 5. Run the demo script by hand (`docs/hub/05_ACCEPTANCE_TESTS.md`, "Demo script owner can run in staging").
@@ -34,7 +34,7 @@ re-run 12 migrations.
 ## 4. Apply to production
 1. Merge `hub/volunteer-hub` into `main` (after review).
 2. `supabase link --project-ref cxesxjclhfwvqgchkqlb` → `supabase db push`. This applies, in order:
-   `20261019000100_hub_people` … `20261019000700_hub_notifications`. Each is a single transaction.
+   `20261019000100_hub_people` … `20261019000800_hub_hardening`. Each is a single transaction.
 3. Check: `select count(*) from people` equals `select count(*) from volunteers`; your login works and lands on `/manage`.
 4. Deploy the app (Vercel Production). Environment changes:
    - `LEGACY_ROTA_UI=false`
@@ -59,7 +59,7 @@ publish → it's on the calendar → cancel it with a reason → `/volunteer` lo
 ## 7. Rollback
 - **App only:** redeploy `main` @ `98c0f6d` (the last pre-Hub commit). The database stays Hub-ready; the old app ignores the new tables.
 - **Database:** run the rollback scripts in reverse order, each in one transaction:
-  `docs/sql/rollback-20261019000700.sql` … `rollback-20261019000100.sql`.
+  `docs/sql/rollback-20261019000800.sql` … `rollback-20261019000100.sql`.
   Export Hub data first (Settings → downloads): Stages 3–6 rollbacks drop commitments, club roles and applications.
   Stage 2's rollback refuses to run while any event has no venue or no finish time (it won't invent data) — fix or export those first.
   The full forward + reverse sequence is rehearsed by `tests/db/hub-rehearsal.db.test.ts` on production-shaped data, with legacy checksums compared.

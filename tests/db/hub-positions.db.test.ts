@@ -115,8 +115,10 @@ describe("interest and succession", () => {
     await expectCode(call(db, member, "select public.hub_save_position(null, '{\"title\":\"x\"}'::jsonb)"), "not_authorised");
   });
   it("members don't see others' interest or holder notes in the tables", async () => {
-    expect(await call(db, member, "select * from position_interests where person_id <> $1", [member.id])).toHaveLength(0);
-    expect(await call(db, member, "select * from position_holders")).toHaveLength(0);
+    expect(await call(db, member, "select id from position_interests where person_id <> $1", [member.id])).toHaveLength(0);
+    expect(await call(db, member, "select id from position_holders where person_id <> $1", [member.id])).toHaveLength(0);
+    // Admin notes aren't selectable at all, even on their own rows.
+    await expect(call(db, member, "select * from position_interests")).rejects.toThrow(/permission denied/);
   });
 });
 

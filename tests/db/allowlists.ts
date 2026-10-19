@@ -29,7 +29,7 @@ export const HUB_SIGNED_IN_FUNCTIONS = [
   "hub_request_availability", "hub_mark_request_contacted", "hub_respond_availability", "hub_record_availability",
   "hub_invite_to_help", "hub_respond_assignment", "hub_withdraw_assignment", "hub_record_assignment_response",
   "hub_cancel_assignment", "hub_set_expected_override", "hub_event_involvement", "hub_request_candidates",
-  "hub_people_picker", "hub_my_home", "hub_open_requests",
+  "hub_people_picker", "hub_my_home", "hub_open_requests", "hub_person_notes",
   // Stage 4
   "hub_create_venue_cover", "hub_update_venue_cover", "hub_venue_cover_preview", "hub_venue_covers", "hub_manage_overview",
   // Stage 5

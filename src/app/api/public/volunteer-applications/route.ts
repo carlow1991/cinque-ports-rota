@@ -38,7 +38,11 @@ export async function POST(request: NextRequest) {
   const sb = serviceClient();
   if (!sb) { log.warn("apply", "secret key not configured"); return NO("Sorry, we can't take applications online right now. Please contact the club.", 503); }
 
-  const ip = (request.headers.get("x-forwarded-for") ?? "").split(",")[0].trim() || request.headers.get("x-real-ip") || "unknown";
+  // Vercel sets x-vercel-forwarded-for / x-real-ip itself (clients can't override them); the
+  // x-forwarded-for fallback is for local runs only.
+  const ip = request.headers.get("x-vercel-forwarded-for")?.split(",")[0].trim()
+    || request.headers.get("x-real-ip")
+    || (request.headers.get("x-forwarded-for") ?? "").split(",")[0].trim() || "unknown";
   const rateKey = createHash("sha256").update(`${process.env.SUPABASE_SECRET_KEY}:apply:${ip}`).digest("hex");
   const { error } = await sb.rpc("public_submit_application", {
     p: { ...v.data, privacy_notice_version: PRIVACY_NOTICE_VERSION },
@@ -46,7 +50,7 @@ export async function POST(request: NextRequest) {
   });
   if (error) {
     const code = error.message ?? "";
-    if (code in SUBMIT_ERRORS) return NO(SUBMIT_ERRORS[code], code === "rate_limited" ? 429 : 400);
+    if (Object.hasOwn(SUBMIT_ERRORS, code)) return NO(SUBMIT_ERRORS[code], code === "rate_limited" ? 429 : 400);
     if (error.code === "P0001" && error.details) return NO(error.details);
     log.warn("apply", "submission failed", { code: error.code }); // category only, never the content
     return NO("Sorry, something went wrong. Please try again in a few minutes.", 500);

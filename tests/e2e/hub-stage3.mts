@@ -24,7 +24,6 @@ const [{ id: info }] = await q<{ id: string }>(
   "insert into events (title, category, event_type, external_location_text, starts_at, status) values ('Away meeting (E2E)', 'meeting', 'meeting', 'Clubhouse at Deal', $1, 'published') returning id", [start]);
 const [{ id: kelly }] = await q<{ id: string }>("select id from people where email_normalized = 'vol@test.local'");
 const [{ id: bob }] = await q<{ id: string }>("select id from people where email_normalized = 'other@test.local'");
-const outboxBefore = (await q<{ n: number }>("select count(*)::int n from notification_outbox"))[0].n;
 
 // --- Organiser requests availability (reviews recipients, presses Send)
 const admin = await newPage();

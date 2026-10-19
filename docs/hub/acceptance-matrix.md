@@ -7,7 +7,7 @@ All tests run against throwaway local databases and the fake-Supabase harness (n
 |---|---|---|---|
 | C01 | Scott, name only, no login/email | db/hub-people · e2e/hub-stage1 | ✅ |
 | C02 | Kelly: no send on create; explicit invite once, audited | db/hub-people · e2e/hub-stage1 | ✅ |
-| C03 | Member can't edit others / read private contacts | db/hub-people · e2e/hub-stage1 | ✅ |
+| C03 | Member can't edit others / read private contacts | db/hub-people · db/hub-hardening · e2e/hub-stage1 | ✅ |
 | C04 | Linking doesn't duplicate; 8+ posts, many teams | db/hub-people | ✅ |
 | C05 | Public can't see directory/calendar (URLs, API, anon key) | db/hub-people · db/privileges · e2e/hub-stage5 | ✅ |
 | H06 | Invite failure shown as not sent, retry | db/hub-people · e2e/hub-stage1 | ✅ |
@@ -53,7 +53,7 @@ All tests run against throwaway local databases and the fake-Supabase harness (n
 | C46 | Confirm/Decline in a couple of taps | e2e/hub-stage3 | ✅ |
 | C47 | Overview separates Available/Confirmed/Expected/Pending/Declined honestly | unit/involvement · e2e/hub-stage4 · e2e/hub-demo | ✅ |
 | H48 | axe WCAG 2.1 AA on 9 screens; 320px reflow; keyboard reach | e2e/hub-demo | ✅ (automated; a manual screen-reader pass is still worthwhile) |
-| C49 | RLS on every public table; server checks; no secret in bundle | db/security-audit · db/privileges · unit/server-enforcement · e2e/hub-demo | ✅ |
+| C49 | RLS on every public table; server checks; no secret in bundle | db/security-audit · db/privileges · db/hub-hardening · unit/server-enforcement · e2e/hub-demo | ✅ |
 | C50 | Messages only after deliberate actions | db/hub-notifications · e2e/hub-demo | ✅ |
 | C51 | Migration keeps ids/history; rollback rehearsed; production untouched | db/hub-rehearsal · db/hub-people · db/hub-calendar | ✅ locally; staging run awaits D2 |
 | H52 | Outbox idempotency, failure, retry | db/hub-notifications · db/outbox | ✅ |

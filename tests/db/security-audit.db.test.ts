@@ -66,7 +66,9 @@ describe("anonymous visitors (publishable key, not signed in)", () => {
 
 describe("signed-in users (authenticated): exact grant snapshot; RLS narrows every row further", () => {
   it("table-level grants", async () => {
-    const hub = HUB_SELECT_ONLY_TABLES.map((t) => ({ table_name: t, p: "SELECT" }));
+    // people / position_holders / position_interests are column-granted (admin notes withheld): see below.
+    const COLUMN_GRANTED = ["people", "position_holders", "position_interests"];
+    const hub = HUB_SELECT_ONLY_TABLES.filter((t) => !COLUMN_GRANTED.includes(t)).map((t) => ({ table_name: t, p: "SELECT" }));
     expect((await tableGrants("authenticated")).sort(byName)).toEqual([...hub, ...[
       { table_name: "assignments", p: "SELECT" },
       { table_name: "audit_log", p: "SELECT" },
@@ -99,13 +101,16 @@ describe("signed-in users (authenticated): exact grant snapshot; RLS narrows eve
       { table_name: "club_settings", privilege_type: "UPDATE", cols: "reminder_day_before,withdrawal_cutoff_hours" },
       { table_name: "event_shifts", privilege_type: "INSERT", cols: "approval_required,duty_type_id,ends_at,event_id,instructions,required_count,signup_enabled,source_template_item_id,starts_at" },
       { table_name: "event_shifts", privilege_type: "UPDATE", cols: "instructions" },
-      { table_name: "events", privilege_type: "INSERT", cols: "competition,coverage_event_id,description,ends_at,event_type,instructions,kickoff_at,opponent,site_responsibility,starts_at,team_id,title,venue_id" },
-      { table_name: "events", privilege_type: "UPDATE", cols: "competition,description,instructions,kickoff_at,opponent,site_responsibility,team_id,title" },
+      { table_name: "people", privilege_type: "SELECT", cols: "created_at,created_by_person_id,directory_visibility,display_name,email_normalized,full_name,id,involvement,is_under_18,lifecycle_status,phone_normalized,preferred_contact_channel,routine_requests_enabled,share_email_with_members,share_phone_with_members,updated_at" },
+      { table_name: "position_holders", privilege_type: "SELECT", cols: "capacity_label,club_position_id,created_at,end_date,id,person_id,start_date" },
+      { table_name: "position_interests", privilege_type: "SELECT", cols: "application_id,created_at,id,person_id,position_id,stage,updated_at" },
       { table_name: "volunteers", privilege_type: "UPDATE", cols: "display_name,phone,preferred_venue_id" },
     ]);
-    const ev = c.find((x) => x.table_name === "events" && x.privilege_type === "INSERT")!.cols.split(",");
-    expect(ev).not.toContain("status");
-    expect(ev).not.toContain("is_demo");
+    // Events are written only through the Hub functions (hardening migration).
+    expect(c.find((x) => x.table_name === "events")).toBeUndefined();
+    for (const [t, col] of [["people", "notes_private"], ["position_holders", "note_private"], ["position_interests", "note_private"]]) {
+      expect(c.find((x) => x.table_name === t)!.cols.split(",")).not.toContain(col);
+    }
   });
   it("no sequence access", async () => {
     expect(await sequences("authenticated")).toBe(0);

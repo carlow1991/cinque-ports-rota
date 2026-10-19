@@ -31,7 +31,7 @@ async function Person({ params, searchParams }: PageProps<"/manage/people/[id]">
   const { id } = await params;
   if (!z.uuid().safeParse(id).success) notFound();
   const sp = await searchParams;
-  const [{ person: p, account, teams: roles, prefs, slots, scopes }, teams, venues] = await Promise.all([loadPerson(id), loadTeams(), loadVenues()]);
+  const [{ person: p, account, teams: roles, prefs, slots, scopes }, teams, venues] = await Promise.all([loadPerson(id, { withNotes: true }), loadTeams(), loadVenues()]);
   if (!p) notFound();
   const done = typeof sp.done === "string" ? DONE[sp.done] : undefined;
   const status = portalStatusLabel(

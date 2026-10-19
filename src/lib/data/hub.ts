@@ -56,13 +56,17 @@ export type Preferences = {
 };
 export type UsualSlot = { day_of_week: number; daypart: string };
 
-const PERSON_COLS = "id, full_name, display_name, email_normalized, phone_normalized, preferred_contact_channel, lifecycle_status, routine_requests_enabled, involvement, directory_visibility, share_email_with_members, share_phone_with_members, is_under_18, notes_private, created_at";
+const PERSON_COLS = "id, full_name, display_name, email_normalized, phone_normalized, preferred_contact_channel, lifecycle_status, routine_requests_enabled, involvement, directory_visibility, share_email_with_members, share_phone_with_members, is_under_18, created_at";
 
-/** Full record (admins, or the person themselves: RLS returns nothing otherwise). */
-export async function loadPerson(id: string) {
+/**
+ * Full record (admins, or the person themselves: RLS returns nothing otherwise).
+ * Admin-only notes are not column-readable by members; admins get them via hub_person_notes.
+ */
+export async function loadPerson(id: string, opts: { withNotes?: boolean } = {}) {
   const sb = await createClient();
-  const [p, acc, teams, prefs, slots, scopes, allTeams] = await Promise.all([
+  const [p, notes, acc, teams, prefs, slots, scopes, allTeams] = await Promise.all([
     sb.from("people").select(PERSON_COLS).eq("id", id).maybeSingle(),
+    opts.withNotes ? sb.rpc("hub_person_notes", { p_person_id: id }) : Promise.resolve({ data: null, error: null }),
     sb.from("user_accounts").select("person_id, auth_user_id, access_level, enabled, invited_at, invite_state, last_invite_at, last_invite_error, linked_at").eq("person_id", id).maybeSingle(),
     sb.from("team_people").select("id, team_id, role_label, is_expected_by_default, active_from, active_to").eq("person_id", id).order("active_from", { ascending: false }),
     sb.from("volunteer_preferences").select("commitment_bucket, commitment_pattern, location_preference, willing_to_learn, strengths, interests, free_text").eq("person_id", id).maybeSingle(),
@@ -71,7 +75,9 @@ export async function loadPerson(id: string) {
     sb.from("teams").select("id, name"),
   ]);
   const teamName = new Map((must(allTeams, "teams") as { id: string; name: string }[]).map((t) => [t.id, t.name]));
-  const person = mustOne(p, "the person") as PersonFull | null;
+  if (notes.error) throw new Error("Couldn't load the notes.");
+  const base = mustOne(p, "the person") as Omit<PersonFull, "notes_private"> | null;
+  const person: PersonFull | null = base ? { ...base, notes_private: (notes.data as string | null) ?? null } : null;
   return {
     person,
     account: mustOne(acc, "the account") as Account | null,

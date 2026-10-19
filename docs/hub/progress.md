@@ -76,3 +76,5 @@ See `stage-0-audit.md`.
 **Handover** `admin-guide.md`, `volunteer-guide.md`, `deployment-runbook.md`, `decisions-log.md`, `acceptance-matrix.md`, `supabase/seed-hub-demo.sql` (fictional, local/staging only).
 **Tests** `tests/db/hub-notifications.db.test.ts` (C14, C50, H52), `tests/db/hub-rehearsal.db.test.ts` (C51: all 7 migrations forward then all rollbacks in reverse on production-shaped data, legacy checksums equal), `tests/db/hub-demo-seed.db.test.ts`; `tests/e2e/hub-demo.mts` 30/30 (owner's demo script, emails, axe WCAG 2.1 AA, 320px reflow, keyboard, cron lock, headers, no secrets in bundle).
 **Live system** Read-only preflight on the live project: 0 problems. Nothing applied, sent or deployed.
+
+**Security review** An independent review found no anon/PUBLIC exposure. One high and one medium issue were fixed in `20261019000800_hub_hardening.sql` (details in `decisions-log.md` §B2). Final run: `npm test` 41 files / 614 tests, lint and typecheck clean, `npm run e2e` all stages + demo (149/149 checks).

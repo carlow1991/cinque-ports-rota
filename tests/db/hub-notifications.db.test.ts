@@ -122,7 +122,11 @@ describe("settings and privacy", () => {
     await expectCode(call(db, kelly, "select public.hub_save_settings('{}'::jsonb)"), "not_authorised");
   });
   it("anonymising a leaver removes their details but keeps event history; nothing more is sent to them", async () => {
+    const [{ full_name: oldName }] = await rows<{ full_name: string }>(db.admin, "select full_name from people where id = $1", [bob.id]);
+    await db.admin.query("update people set full_name = full_name where id = $1", [bob.id]); // ensure a logged row holds the name
     await callCommit(db, admin, "select public.hub_anonymise_person($1)", [bob.id]);
+    const history = await rows<{ t: string }>(db.admin, "select coalesce(old_data::text, '') || coalesce(new_data::text, '') t from audit_log");
+    expect(history.filter((h) => h.t.includes(oldName))).toEqual([]);
     const [p] = await rows<Record<string, unknown>>(db.admin, "select full_name, email_normalized, phone_normalized, lifecycle_status from people where id = $1", [bob.id]);
     expect(p).toEqual({ full_name: "Former volunteer", email_normalized: null, phone_normalized: null, lifecycle_status: "inactive" });
     expect(await rows(db.admin, "select 1 from hub_assignments where person_id = $1", [bob.id])).not.toHaveLength(0);

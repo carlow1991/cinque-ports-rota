@@ -3,7 +3,7 @@
 ## A. Waiting for Carl (nothing below has been done to the live system)
 | # | Decision | Default on the branch |
 |---|---|---|
-| D1 | Apply the 7 Hub migrations to the live project (align migration history first — runbook §2) | Not applied. Preflight on live: 0 problems. |
+| D1 | Apply the 8 Hub migrations to the live project (align migration history first — runbook §2) | Not applied. Preflight on live: 0 problems. |
 | D2 | Staging Supabase project (free tier) or accept local rehearsal | Local Postgres + fake Supabase only. |
 | D3 | Freemens Way inactive | Migration sets it inactive; history kept; reactivate in Settings. |
 | D4 | Real people, emails, team ↔ manager links (Scott, Danny, Matty) | Only fictional demo data (`supabase/seed-hub-demo.sql`). |
@@ -51,6 +51,15 @@
 
 **Legacy**
 - Old rota/duty-template screens redirect to Hub pages unless `LEGACY_ROTA_UI=true`; legacy tables and data are untouched. The nine former duty types are only optional interest tags.
+
+## B2. Independent security review (19 Oct 2026) — outcome
+Lockdown confirmed sound (anon runs nothing, PUBLIC executes nothing, every definer function pins `search_path`, RLS everywhere, secret-key client server-only). Fixed in `20261019000800_hub_hardening.sql` (+ tested rollback, `tests/db/hub-hardening.db.test.ts`):
+- **High:** disabling/demoting someone in the Hub left their legacy admin powers. Legacy identity and role now come from the Hub account; legacy-path volunteer changes are mirrored into the Hub; direct event writes withdrawn.
+- **Medium:** members could read admin notes about themselves. Notes are now column-withheld; admins read them via `hub_person_notes`.
+- Under-18s: hidden from coordinators' people picker and from ordinary members on event pages.
+- Anonymising now also removes names from the audit history (Hub and legacy procedures).
+- Public endpoint: client IP from Vercel's own header; safer error lookup.
+Accepted as designed: coordinators can see a person's clash at another place when booking them; a team coordinator can create that team's events at any active venue; saving a date/time/place change asks confirmed helpers to reconfirm (C14) and cancelling notifies them — both only once email is switched on.
 
 ## C. Possible later improvements (not V1)
 Calendar ICS feed; FA Full-Time fixture import; monthly admin digest; applicant acknowledgement email (separate setting); opportunity broadcasts; tasks/maintenance checklist; volunteer-hours report; inviting 16–17-year-olds with a parent/carer flow; per-team coordinator self-service for people; dropping legacy rota tables after a settled period (needs its own approval).

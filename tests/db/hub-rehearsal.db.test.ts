@@ -68,7 +68,7 @@ describe("C51 — rehearsal of the Hub migrations on production-shaped data", ()
   });
   it("every rollback script applies in reverse order and restores the legacy schema and data", async () => {
     const scripts = readdirSync("docs/sql").filter((f) => /^rollback-20261019\d+\.sql$/.test(f)).sort().reverse();
-    expect(scripts).toHaveLength(7);
+    expect(scripts).toHaveLength(8);
     for (const f of scripts) {
       await db.admin.query(`begin; ${readFileSync(`docs/sql/${f}`, "utf8")}; commit;`).catch(async (e) => {
         await db.admin.query("rollback").catch(() => {});

@@ -124,7 +124,7 @@ describe("organiser scope", () => {
     await expectCode(call(db, member, "select public.hub_create_event($1::jsonb)", [JSON.stringify({ title: "X", venue_id: marke, starts_at: at("09:00") })]), "not_authorised");
     const [{ id }] = await rows<{ id: string }>(db.admin, "select id from events limit 1");
     await expectCode(call(db, member, "select public.hub_set_event_status($1, 'cancelled', 'x')", [id]), "not_authorised");
-    await expect(call(db, member, "update events set title = 'x' where id = $1", [id])).resolves.toEqual([]);
+    await expect(call(db, member, "update events set title = 'x' where id = $1", [id])).rejects.toThrow(/permission denied/);
     expect((await rows<{ title: string }>(db.admin, "select title from events where id = $1", [id]))[0].title).not.toBe("x");
     await expect(db.asAnon((c) => c.query("select * from events"))).rejects.toThrow(/permission denied/);
   });
