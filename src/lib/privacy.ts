@@ -5,7 +5,6 @@
  */
 export const PRIVACY_NOTICE_VERSION = "draft-2026-10-19";
 export const PRIVACY_NOTICE_APPROVED = false;
-export const CLUB_CONTACT = process.env.CLUB_CONTACT_EMAIL || "the club secretary";
 
 export const PRIVACY_SECTIONS: { heading: string; body: string }[] = [
   { heading: "Who we are", body: "Cinque Ports FC (“the club”) runs the Volunteer Hub to organise club activity and volunteers." },

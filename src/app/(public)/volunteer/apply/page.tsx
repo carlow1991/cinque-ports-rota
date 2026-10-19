@@ -1,8 +1,7 @@
 import type { Metadata } from "next";
 import { Suspense } from "react";
 import { PageLoading } from "@/components/app-header";
-import { CLUB_CONTACT } from "@/lib/privacy";
-import { loadPublicOpportunities } from "@/lib/supabase/service";
+import { loadClubContact, loadPublicOpportunities } from "@/lib/supabase/service";
 import { ApplyForm } from "./apply-form";
 
 export const metadata: Metadata = { title: "Offer to volunteer · Cinque Ports FC" };
@@ -20,6 +19,6 @@ export default function ApplyPage(props: PageProps<"/volunteer/apply">) {
 
 async function Form({ searchParams }: PageProps<"/volunteer/apply">) {
   const sp = await searchParams;
-  const roles = (await loadPublicOpportunities()) ?? [];
-  return <ApplyForm roles={roles.map((r) => ({ id: r.id, title: r.title }))} preselect={typeof sp.role === "string" ? sp.role : undefined} clubContact={CLUB_CONTACT} />;
+  const [roles, contact] = await Promise.all([loadPublicOpportunities(), loadClubContact()]);
+  return <ApplyForm roles={(roles ?? []).map((r) => ({ id: r.id, title: r.title }))} preselect={typeof sp.role === "string" ? sp.role : undefined} clubContact={contact} />;
 }

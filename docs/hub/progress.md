@@ -66,3 +66,13 @@ See `stage-0-audit.md`.
 **Screens** `/volunteer/apply` (3 steps, in-memory with Back, “I'm not sure” option, under-18 route to contact the club with a parent/carer, privacy acknowledgement + separate optional news opt-in, agreed thank-you text), `/manage/applications` (+ `[id]`: answers, side-by-side duplicate check, suggestions with reasons and checks flag, review, add/link, delete).
 **Tests** `tests/db/hub-applications.db.test.ts` 22 (C36–C42, H43, H44, rollback), `tests/unit/application-form.test.ts`, `tests/e2e/hub-stage6.mts` 25/25.
 **Needs the club** contact address for the under-18 route (`CLUB_CONTACT_EMAIL`), privacy notice approval, retention period.
+
+## Stage 7 — Notifications, legacy retirement, hardening and handover ✅
+**Migration** `20261019000700_hub_notifications.sql` (rollback tested; restores the legacy worker functions).
+- Hub messages go through the existing outbox (release switch, staging allow-list, demo suppression, re-check before send, retry): availability requests, direct invitations and cover requests, answers to the organiser, reconfirmations, cancellations, day-before reminders. A request's delivery state (queued / sent / failed / manual contact) is shown to organisers.
+- Nothing is queued by creating people, events or applications, or by publishing. Recipients need an email and an enabled linked account; otherwise "contact them yourself".
+- Settings: club contact email, applications on/off, retention period, reminders, email start/pause; CSV downloads (logged); "Remove their details" for leavers (anonymises person and legacy volunteer row).
+- Legacy rota screens redirect unless `LEGACY_ROTA_UI=true`; legacy e2e scripts moved to `tests/e2e/legacy/`. Env template and `check-env` rules cover the Hub.
+**Handover** `admin-guide.md`, `volunteer-guide.md`, `deployment-runbook.md`, `decisions-log.md`, `acceptance-matrix.md`, `supabase/seed-hub-demo.sql` (fictional, local/staging only).
+**Tests** `tests/db/hub-notifications.db.test.ts` (C14, C50, H52), `tests/db/hub-rehearsal.db.test.ts` (C51: all 7 migrations forward then all rollbacks in reverse on production-shaped data, legacy checksums equal), `tests/db/hub-demo-seed.db.test.ts`; `tests/e2e/hub-demo.mts` 30/30 (owner's demo script, emails, axe WCAG 2.1 AA, 320px reflow, keyboard, cron lock, headers, no secrets in bundle).
+**Live system** Read-only preflight on the live project: 0 problems. Nothing applied, sent or deployed.

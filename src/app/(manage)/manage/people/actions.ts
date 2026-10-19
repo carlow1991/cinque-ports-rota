@@ -143,3 +143,16 @@ export async function createTeamAction(_p: ActionResult | null, fd: FormData): P
   refresh();
   return { ok: true, message: `${name} added.` };
 }
+
+/** Remove a leaver's details on request (irreversible). Event history stays, as "Former volunteer". */
+export async function anonymisePersonAction(_p: ActionResult | null, fd: FormData): Promise<ActionResult> {
+  await requireLevel(HUB_ADMIN);
+  const id = uuid.safeParse(fd.get("person_id"));
+  if (!id.success) return fail("Not found.");
+  if (String(fd.get("confirm_text") ?? "").trim().toUpperCase() !== "ANONYMISE") return fail("Type ANONYMISE to confirm.");
+  const sb = await createClient();
+  const { error } = await sb.rpc("hub_anonymise_person", { p_person_id: id.data });
+  if (error) return fail(friendlyError(error));
+  refresh();
+  return { ok: true, message: "Their details have been removed. Their past involvement now shows as “Former volunteer”." };
+}

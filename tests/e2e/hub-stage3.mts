@@ -111,5 +111,8 @@ check("members don't see contact numbers", !memberView.includes("07700 900333"))
 await kel.goto(`${APP}/calendar/${info}`);
 await kel.getByRole("heading", { name: "Away meeting (E2E)" }).waitFor();
 check("information-only event shows no 'Can you help?'", (await kel.getByRole("heading", { name: "Can you help?" }).count()) === 0);
-check("nothing was emailed by any of this (email arrives in Stage 7)", (await q<{ n: number }>("select count(*)::int n from notification_outbox"))[0].n === outboxBefore);
+// Since Stage 7, deliberate actions (requests, invitations, answers) queue email; nothing else does.
+const DELIBERATE = ["availability_request", "assignment_request", "assignment_confirmed", "assignment_declined", "assignment_withdrawn"];
+const other = await q<{ kind: string }>("select kind from notification_outbox where not (kind = any($1))", [DELIBERATE]);
+check("C50: only requests, invitations and answers queued email", other.length === 0, other.map((r) => r.kind).join(", "));
 await finish();

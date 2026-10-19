@@ -85,7 +85,8 @@ describe("C18 / C19 — only people deliberately asked are 'Not replied'", () =>
     const asked = await rows<{ person_id: string }>(db.admin, "select person_id from availability_requests where event_id = $1", [ladiesEvent]);
     expect(asked.map((a) => a.person_id).sort()).toEqual([kelly.id, adam.id, riley.id, bob.id, steve.id].sort());
     for (const m of [scott, danny, matty]) expect(asked.map((a) => a.person_id)).not.toContain(m);
-    expect(await outbox()).toBe(before); // Stage 3: requests are recorded; nothing is emailed until Stage 7's outbox
+    // One message per person asked (all five have Hub logins) — queued only by this explicit Send.
+    expect(await outbox()).toBe(before + 5);
   });
   it("asking again is idempotent (no duplicate request)", async () => {
     const [res] = await callCommit<{ r: { requested: number; already_asked: number } }>(db, admin, "select public.hub_request_availability($1, $2) r", [ladiesEvent, [kelly.id, kelly.id]]);

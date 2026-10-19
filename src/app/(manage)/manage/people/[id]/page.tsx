@@ -12,7 +12,7 @@ import { requireLevel } from "@/lib/auth/dal";
 import { loadPerson, loadTeams, loadVenues, portalStatusLabel } from "@/lib/data/hub";
 import { authInvitesEnabled } from "@/lib/supabase/admin";
 import { formatLongDay } from "@/lib/time/london";
-import { sendInviteAction, setAccessAction, setPreferencesAction, setTeamRoleAction, updatePersonAction } from "../actions";
+import { anonymisePersonAction, sendInviteAction, setAccessAction, setPreferencesAction, setTeamRoleAction, updatePersonAction } from "../actions";
 
 export const metadata: Metadata = { title: "Person" };
 
@@ -168,6 +168,17 @@ async function Person({ params, searchParams }: PageProps<"/manage/people/[id]">
           </details>
         ) : null}
       </Card>
+
+      {p.id !== me.id && p.full_name !== "Former volunteer" ? (
+        <details className="rounded-xl border border-line bg-white p-3">
+          <summary className="min-h-11 cursor-pointer py-2 text-sm font-semibold text-danger">Remove their details (on request)</summary>
+          <p className="text-sm">For someone leaving who asks to be forgotten. Removes their name, contact details, notes, interests and availability, ends Hub access and deletes linked applications. Past events keep a “Former volunteer” entry. This can&apos;t be undone — export first if the club needs a record.</p>
+          <ActionForm action={anonymisePersonAction} submitLabel="Remove their details" variant="danger" confirm="Remove this person's details permanently?">
+            <input type="hidden" name="person_id" value={p.id} />
+            <Field label="Type ANONYMISE to confirm"><Input name="confirm_text" autoComplete="off" required /></Field>
+          </ActionForm>
+        </details>
+      ) : null}
     </section>
   );
 }

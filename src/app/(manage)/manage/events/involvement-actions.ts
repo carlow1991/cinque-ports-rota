@@ -1,6 +1,7 @@
 "use server";
 
 import { refresh } from "next/cache";
+import { kickOutbox } from "@/lib/email/server";
 import { z } from "zod";
 import { HUB_MANAGERS } from "@/lib/auth/access";
 import { requireLevel } from "@/lib/auth/dal";
@@ -38,9 +39,10 @@ export async function requestAvailabilityAction(_p: ActionResult | null, fd: For
   const { data, error } = await sb.rpc("hub_request_availability", { p_event_id: id.data, p_person_ids: people });
   if (error) return fail(friendlyError(error));
   refresh();
+  kickOutbox();
   const r = data as { requested: number; already_asked: number };
   const again = r.already_asked ? ` ${r.already_asked} had already been asked and weren't asked again.` : "";
-  return { ok: true, message: `Asked ${r.requested} ${r.requested === 1 ? "person" : "people"}. They'll see it on their Home page.${again}` };
+  return { ok: true, message: `Asked ${r.requested} ${r.requested === 1 ? "person" : "people"}. They'll see it on their Home page, and those with a Hub login are emailed when club email is switched on. People without a login: contact them yourself.${again}` };
 }
 
 export async function inviteToHelpAction(_p: ActionResult | null, fd: FormData): Promise<ActionResult> {
@@ -58,6 +60,7 @@ export async function inviteToHelpAction(_p: ActionResult | null, fd: FormData):
   });
   if (error) return fail(friendlyError(error));
   refresh();
+  kickOutbox();
   const r = data as { status: string; has_account?: boolean };
   if (r.status.startsWith("already_")) return { ok: true, message: `They already have this request (${r.status.replace("already_", "").replace("_", " ")}). Nothing new was sent.` };
   if (r.status === "recorded_confirmed") return { ok: true, message: "Recorded as confirmed by you (agreed offline)." };
@@ -93,6 +96,7 @@ export async function recordAssignmentResponseAction(_p: ActionResult | null, fd
   const { error } = await sb.rpc("hub_record_assignment_response", { p_assignment_id: id.data, p_accept: accept });
   if (error) return fail(friendlyError(error));
   refresh();
+  kickOutbox();
   return { ok: true, message: accept ? "Recorded as confirmed by you." : "Recorded as declined." };
 }
 
@@ -104,6 +108,7 @@ export async function cancelAssignmentAction(_p: ActionResult | null, fd: FormDa
   const { error } = await sb.rpc("hub_cancel_assignment", { p_assignment_id: id.data, p_reason: str(fd, "reason") || null });
   if (error) return fail(friendlyError(error));
   refresh();
+  kickOutbox();
   return { ok: true, message: "Cancelled." };
 }
 

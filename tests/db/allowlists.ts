@@ -38,6 +38,8 @@ export const HUB_SIGNED_IN_FUNCTIONS = [
   // Stage 6
   "hub_update_application", "hub_link_application", "hub_create_person_from_application", "hub_match_application_position",
   "hub_recompute_suggestions", "hub_delete_application", "hub_application_counts",
+  // Stage 7
+  "hub_save_settings", "hub_anonymise_person", "hub_log_export",
 ];
 
 export const SIGNED_IN_FUNCTIONS = [...new Set([...LEGACY_SIGNED_IN_FUNCTIONS, ...HUB_SIGNED_IN_FUNCTIONS])].sort();
@@ -45,7 +47,7 @@ export const SIGNED_IN_FUNCTIONS = [...new Set([...LEGACY_SIGNED_IN_FUNCTIONS, .
 /** The secret key (server only): email worker, first-admin bootstrap, and the two public-page functions. */
 export const SERVICE_ROLE_FUNCTIONS = [
   "admin_bootstrap_volunteer", "outbox_claim", "outbox_complete", "outbox_enqueue_reminders", "outbox_suppress",
-  "hub_bootstrap_person", "public_opportunities", "public_submit_application",
+  "hub_bootstrap_person", "public_opportunities", "public_submit_application", "public_club_contact",
 ].sort();
 
 /** Tables signed-in users can read (RLS narrows rows). No Hub table is directly writable. */

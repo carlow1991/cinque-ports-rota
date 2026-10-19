@@ -12,8 +12,10 @@ const MAIN = [
   { href: "/home", label: "Home" },
   { href: "/calendar", label: "Calendar" },
   { href: "/people", label: "People" },
-  { href: "/opportunities", label: "Roles" , full: "Opportunities" },
-  { href: "/my-profile", label: "Me", full: "My Profile" },
+  // Short visible words fit five tabs on a 320px phone; the hidden words complete the name for screen
+  // readers while still starting with the visible text (WCAG 2.5.3, label in name).
+  { href: "/opportunities", label: "Roles", more: " and opportunities" },
+  { href: "/my-profile", label: "Me", more: " (my profile)" },
 ] as const;
 
 export function HubBottomNav() {
@@ -29,10 +31,9 @@ export function HubBottomNavLinks({ pathname }: { pathname: string | null }) {
           return (
             <li key={item.href}>
               <Link href={item.href} aria-current={active ? "page" : undefined}
-                aria-label={"full" in item ? item.full : undefined}
                 className={`flex min-h-14 items-center justify-center px-1 text-sm ${
                   active ? "font-bold text-club underline decoration-accent decoration-4 underline-offset-8" : "text-ink-muted"}`}>
-                {item.label}
+                {item.label}{"more" in item ? <span className="sr-only">{item.more}</span> : null}
               </Link>
             </li>
           );

@@ -27,3 +27,13 @@ export async function loadPublicOpportunities(): Promise<PublicOpportunity[] | n
   if (error) return null;
   return (data ?? []) as PublicOpportunity[];
 }
+
+/** The club's contact address from Settings (falls back to CLUB_CONTACT_EMAIL, then a generic phrase). */
+export async function loadClubContact(): Promise<string> {
+  const sb = serviceClient();
+  if (sb) {
+    const { data } = await sb.rpc("public_club_contact");
+    if (typeof data === "string" && data) return data;
+  }
+  return process.env.CLUB_CONTACT_EMAIL || "the club secretary";
+}

@@ -1,6 +1,7 @@
 "use server";
 
 import { refresh } from "next/cache";
+import { kickOutbox } from "@/lib/email/server";
 import { z } from "zod";
 import { HUB_MANAGERS } from "@/lib/auth/access";
 import { requireLevel } from "@/lib/auth/dal";
@@ -36,6 +37,7 @@ export async function createCoverAction(_p: ActionResult | null, fd: FormData): 
   });
   if (error) return fail(friendlyError(error));
   refresh();
+  kickOutbox();
   const r = data as { status: string; has_account?: boolean };
   if (r.status === "already_exists") return { ok: true, message: "That cover is already arranged. Nothing new was saved or sent." };
   if (r.status === "recorded_confirmed") return { ok: true, message: "Saved as confirmed (agreed offline). It now shows on every event it overlaps." };
@@ -55,6 +57,7 @@ export async function updateCoverAction(_p: ActionResult | null, fd: FormData): 
   });
   if (error) return fail(friendlyError(error));
   refresh();
+  kickOutbox();
   const r = data as { state: string };
   return { ok: true, message: r.state === "needs_reconfirmation"
     ? "Saved. Because the times changed, they need to reconfirm before it counts as cover."

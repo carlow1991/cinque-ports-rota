@@ -1,6 +1,7 @@
 "use server";
 
 import { refresh } from "next/cache";
+import { kickOutbox } from "@/lib/email/server";
 import { z } from "zod";
 import { requirePerson } from "@/lib/auth/dal";
 import { createClient } from "@/lib/supabase/server";
@@ -48,6 +49,7 @@ export async function respondAssignmentAction(_p: ActionResult | null, fd: FormD
   const { error } = await sb.rpc("hub_respond_assignment", { p_assignment_id: id.data, p_accept: accept });
   if (error) return fail(friendlyError(error));
   refresh();
+  kickOutbox();
   return { ok: true, message: accept ? "Confirmed — thank you!" : "Declined. The organiser can see your answer." };
 }
 
@@ -59,5 +61,6 @@ export async function withdrawAssignmentAction(_p: ActionResult | null, fd: Form
   const { error } = await sb.rpc("hub_withdraw_assignment", { p_assignment_id: id.data, p_reason: String(fd.get("reason") ?? "").slice(0, 500) || null });
   if (error) return fail(friendlyError(error));
   refresh();
+  kickOutbox();
   return { ok: true, message: "Done — the organiser can see you can no longer help." };
 }

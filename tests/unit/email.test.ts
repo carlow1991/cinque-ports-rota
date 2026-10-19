@@ -21,7 +21,10 @@ describe("email templates", () => {
   const QUEUED = ["signup_confirmed", "signup_pending", "invitation_accepted", "approval_confirmed", "approval_declined",
     "duty_invitation", "withdrawal_confirmed", "assignment_removed", "cancellation_approved", "cancellation_declined",
     "event_cancelled", "event_postponed", "reconfirm_needed", "shift_cancelled", "reminder",
-    "cancellation_requested", "venue_cover_at_risk"];
+    "cancellation_requested", "venue_cover_at_risk",
+    // Volunteer Hub kinds (queued by _hub_notify / outbox_enqueue_reminders)
+    "availability_request", "assignment_request", "venue_cover_request", "assignment_reconfirm", "assignment_cancelled",
+    "hub_event_cancelled", "hub_reminder", "assignment_confirmed", "assignment_declined", "assignment_withdrawn"];
 
   it("has a template for every kind the database queues, and nothing renders for unknown kinds", () => {
     expect([...EMAIL_KINDS].sort()).toEqual([...QUEUED].sort());
@@ -219,5 +222,26 @@ describe("redacting logger", () => {
     const line = JSON.parse(spy.mock.calls[0][0] as string);
     expect(line).toEqual({ level: "info", scope: "outbox", message: "done for [email]", sent: 3, nested: { code: "x" }, list: "[1 items]" });
     spy.mockRestore();
+  });
+});
+
+describe("Volunteer Hub email kinds", () => {
+  it("render recipient-safe content with the right links", async () => {
+    const { renderEmail } = await import("@/lib/email/templates");
+    const base = { event_id: "2f1c0c34-9ef5-4c63-8fd5-9f4a0e1d2b3c", event_title: "Ladies v Test", venue: "Marke Wood", duty: "Matchday support",
+      shift_starts_at: "2026-11-07T13:00:00Z", shift_ends_at: "2026-11-07T16:00:00Z" };
+    const a = renderEmail("availability_request", base, { recipientName: "Kelly Demo", siteUrl: "https://hub.example" })!;
+    expect(a.subject).toBe("Can you help? Ladies v Test");
+    expect(a.text).toContain("https://hub.example/calendar/2f1c0c34-9ef5-4c63-8fd5-9f4a0e1d2b3c");
+    expect(a.text).toContain("isn't a booking");
+    const inv = renderEmail("assignment_request", base, { recipientName: "Bob", siteUrl: "https://hub.example" })!;
+    expect(inv.text).toContain("Helping with: Matchday support");
+    expect(inv.text).toContain("https://hub.example/home");
+    const org = renderEmail("assignment_declined", { ...base, person_name: "Steve <script>" }, { recipientName: "Alex", siteUrl: "https://hub.example" })!;
+    expect(org.subject).toBe("Steve <script> can't help: Matchday support, Ladies v Test");
+    expect(org.html).not.toContain("<script>");
+    for (const k of ["venue_cover_request", "assignment_reconfirm", "assignment_cancelled", "hub_event_cancelled", "hub_reminder", "assignment_confirmed", "assignment_withdrawn"]) {
+      expect(renderEmail(k, base, { siteUrl: "https://hub.example" })).not.toBeNull();
+    }
   });
 });

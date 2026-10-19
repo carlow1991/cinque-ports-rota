@@ -1,6 +1,7 @@
 "use server";
 
 import { refresh } from "next/cache";
+import { kickOutbox } from "@/lib/email/server";
 import { redirect } from "next/navigation";
 import { z } from "zod";
 import { HUB_MANAGERS } from "@/lib/auth/access";
@@ -59,6 +60,7 @@ export async function updateHubEventAction(_p: ActionResult | null, fd: FormData
   const { data, error } = await sb.rpc("hub_update_event", { p_event_id: id.data, p: r.payload });
   if (error) return fail(friendlyError(error));
   refresh();
+  kickOutbox();
   const res = data as { material: boolean; reconfirm?: number };
   if (res.material && res.reconfirm) return { ok: true, message: `Saved. ${res.reconfirm} confirmed ${res.reconfirm === 1 ? "person needs" : "people need"} to reconfirm because the date, time or place changed. Nothing was sent automatically.` };
   return { ok: true, message: res.material ? "Saved. The date, time or place changed." : "Saved." };
@@ -73,6 +75,7 @@ export async function setHubEventStatusAction(_p: ActionResult | null, fd: FormD
   const { error } = await sb.rpc("hub_set_event_status", { p_event_id: id.data, p_status: status.data, p_reason: s(fd, "reason") || null });
   if (error) return fail(friendlyError(error));
   refresh();
+  kickOutbox();
   const msg = { published: "Published. Members can see it; nothing was sent.", cancelled: "Cancelled. It stays on the calendar marked as cancelled.", completed: "Marked as completed.", draft: "Unpublished. Only organisers can see it now." };
   return { ok: true, message: msg[status.data] };
 }

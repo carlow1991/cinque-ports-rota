@@ -118,3 +118,18 @@ export async function setEmailReleaseAction(_p: ActionResult | null, fd: FormDat
   redirect(mode.data === "pause" ? "/manage/settings?email=paused#email"
     : `/manage/settings?email=started&held=${d.held_back ?? 0}&dropped=${d.suppressed_out_of_date ?? 0}#email`);
 }
+
+/** Club details and Hub switches (contact email, applications open, retention, reminders). */
+export async function saveHubSettingsAction(_p: ActionResult | null, fd: FormData): Promise<ActionResult> {
+  await requireLevel(HUB_ADMIN);
+  const months = String(fd.get("application_retention_months") ?? "").trim();
+  if (months && !/^\d{1,3}$/.test(months)) return fail("Enter a number of months, or leave it blank.");
+  const sb = await createClient();
+  const { error } = await sb.rpc("hub_save_settings", { p: {
+    contact_email: String(fd.get("contact_email") ?? "").trim(), applications_open: fd.get("applications_open") === "on",
+    application_retention_months: months, reminder_day_before: fd.get("reminder_day_before") === "on",
+  } });
+  if (error) return fail(friendlyError(error));
+  refresh();
+  return { ok: true, message: "Settings saved." };
+}

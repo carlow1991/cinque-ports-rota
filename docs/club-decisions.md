@@ -1,5 +1,7 @@
 # Decisions and actions needed from the club
 
+> **Volunteer Hub (Oct 2026):** the Hub redesign adds decisions D1–D10 in `docs/hub/decisions-log.md` (apply migrations, staging, Freemens Way inactive, real people and team links, privacy/retention/under-18 route, which roles recruit, deploy). B2 (withdrawal cut-off), B5 (authorisations) and B6 (template numbers) no longer apply: duty templates and staffing numbers are retired.
+
 Everything the software can do is done and tested. What's left needs a person: a club decision, an account, a payment, or a click in a dashboard. Each has a suggested answer.
 
 ## A. Before staging/production (blocking)
