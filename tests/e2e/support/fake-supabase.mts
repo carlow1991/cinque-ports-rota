@@ -58,6 +58,7 @@ function readJwt(token: string | undefined): Record<string, unknown> | null {
 }
 
 const refreshTokens = new Map<string, { id: string; email: string }>();
+const userMeta = new Map<string, Record<string, unknown>>();
 function session(user: { id: string; email: string }) {
   const now = Math.floor(Date.now() / 1000);
   const exp = now + 3600;
@@ -164,7 +165,13 @@ const server = createServer(async (req, res) => {
     }
     if (path === "/auth/v1/user") {
       const c = readJwt((req.headers.authorization ?? "").replace(/^Bearer /i, ""));
-      return c ? send(res, 200, { id: c.sub, email: c.email, aud: "authenticated", role: "authenticated" }) : send(res, 401, { msg: "invalid JWT" });
+      if (!c) return send(res, 401, { msg: "invalid JWT" });
+      // updateUser({ data }) merges into user_metadata (kept in memory for the test run).
+      if (req.method === "PUT") {
+        const b = (await body(req)) as { data?: Record<string, unknown> };
+        userMeta.set(c.sub as string, { ...(userMeta.get(c.sub as string) ?? {}), ...(b.data ?? {}) });
+      }
+      return send(res, 200, { id: c.sub, email: c.email, aud: "authenticated", role: "authenticated", app_metadata: { provider: "email" }, user_metadata: userMeta.get(c.sub as string) ?? {} });
     }
     if (path === "/auth/v1/logout") return send(res, 204);
     if (path === "/auth/v1/invite" && req.method === "POST") {

@@ -8,6 +8,8 @@ import { loadVenueCovers, type VenueCoverRow } from "@/lib/data/hub-involvement"
 import { coversFor } from "@/lib/domain/venue-cover";
 import { Card, Checkbox, Field, Select } from "@/components/ui";
 import { requirePerson } from "@/lib/auth/dal";
+import { createClient } from "@/lib/supabase/server";
+import { setCalendarViewAction } from "./view-actions";
 import {
   CATEGORIES, eventsByDay, groupByDayAndPlace, isMonthKey, monthGrid, monthLabel, monthOf, shiftMonth, weekDays, weekLabel, type HubEvent,
 } from "@/lib/domain/hub-calendar";
@@ -33,7 +35,9 @@ async function Calendar({ searchParams }: PageProps<"/calendar">) {
   const me = await requirePerson();
   const sp = await searchParams;
   const str = (k: string) => (typeof sp[k] === "string" ? (sp[k] as string) : "");
-  const view: View = str("view") === "week" || str("view") === "month" ? (str("view") as View) : "list";
+  // An explicit view in the address wins; otherwise the person's last choice (saved on their account).
+  const asView = (v: unknown): View | null => (v === "list" || v === "week" || v === "month" ? v : null);
+  const view: View = asView(str("view")) ?? (await savedView()) ?? "list";
   const today = todayKey();
   const isManager = me.level !== "member";
   const showInactive = isManager && str("inactive") === "1";
@@ -69,19 +73,20 @@ async function Calendar({ searchParams }: PageProps<"/calendar">) {
         {isManager ? <Link href="/manage/events/new" className="inline-flex min-h-11 items-center rounded-lg bg-club px-4 font-semibold text-white">+ Event</Link> : null}
       </div>
 
-      <nav aria-label="Calendar view" className="inline-flex rounded-lg border border-line bg-white p-1">
+      <form action={setCalendarViewAction} aria-label="Calendar view" className="inline-flex rounded-lg border border-line bg-white p-1">
+        {Object.entries(filters).map(([k, v]) => <input key={k} type="hidden" name={k} value={v} />)}
         {VIEWS.map((v) => (
-          <Link key={v.code} href={href(v.code === "list" ? {} : { view: v.code })} aria-current={view === v.code ? "page" : undefined}
+          <button key={v.code} type="submit" name="view" value={v.code} aria-pressed={view === v.code}
             className={`inline-flex min-h-11 min-w-16 items-center justify-center rounded-md px-3 text-sm font-semibold ${view === v.code ? "bg-club text-white" : "text-club"}`}>
             {v.label}
-          </Link>
+          </button>
         ))}
-      </nav>
+      </form>
 
       <details className="rounded-xl border border-line bg-white p-3" open={filtered || undefined}>
         <summary className="min-h-11 cursor-pointer py-2 font-semibold text-club">Filter{filtered ? " (on)" : ""}</summary>
         <form className="mt-2 grid gap-3 sm:grid-cols-3">
-          {view !== "list" ? <input type="hidden" name="view" value={view} /> : null}
+          <input type="hidden" name="view" value={view} />
           {view === "month" ? <input type="hidden" name="month" value={month} /> : null}
           {view === "week" ? <input type="hidden" name="week" value={monday} /> : null}
           <Field label="Where">
@@ -101,7 +106,7 @@ async function Calendar({ searchParams }: PageProps<"/calendar">) {
           {isManager ? <Checkbox name="inactive" value="1" label="Show inactive venues" defaultChecked={showInactive} /> : null}
           <div className="flex flex-wrap gap-2 sm:col-span-3">
             <button className="min-h-11 rounded-lg border border-line bg-white px-4 text-sm font-semibold text-club">Apply</button>
-            {filtered ? <Link href={view === "list" ? "/calendar" : `/calendar?view=${view}`} className="inline-flex min-h-11 items-center px-2 text-sm font-semibold text-club-blue underline">Clear filters</Link> : null}
+            {filtered ? <Link href={`/calendar?view=${view}`} className="inline-flex min-h-11 items-center px-2 text-sm font-semibold text-club-blue underline">Clear filters</Link> : null}
           </div>
         </form>
       </details>
@@ -112,10 +117,18 @@ async function Calendar({ searchParams }: PageProps<"/calendar">) {
       ) : view === "week" ? (
         <WeekView monday={monday} today={today} byDay={eventsByDay(list)} names={names} href={href} />
       ) : (
-        <ListView list={list} names={names} covers={covers} weeks={weeks} next={href({ from: addDays(from, weeks * 7) })} />
+        <ListView list={list} names={names} covers={covers} weeks={weeks} next={href({ view: "list", from: addDays(from, weeks * 7) })} />
       )}
     </section>
   );
+}
+
+/** The view this person last chose (stored in their account's metadata; per person, any device). */
+async function savedView(): Promise<View | null> {
+  const sb = await createClient();
+  const { data } = await sb.auth.getUser().catch(() => ({ data: { user: null } }));
+  const v = data.user?.user_metadata?.calendar_view;
+  return v === "list" || v === "week" || v === "month" ? v : null;
 }
 
 /** Agenda for one or more days: grouped by place, shared venue cover shown once per place. */

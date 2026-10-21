@@ -24,10 +24,10 @@ const kel = await newPage();
 await signIn(kel, "vol@test.local");
 await kel.setViewportSize({ width: 1280, height: 900 });
 await kel.goto(`${APP}/calendar`);
-await kel.getByRole("navigation", { name: "Calendar view" }).waitFor();
-check("List is the default view", (await kel.getByRole("link", { name: "List", exact: true }).getAttribute("aria-current")) === "page");
+await kel.getByRole("form", { name: "Calendar view" }).waitFor();
+check("List is the default view", (await kel.getByRole("button", { name: "List", exact: true }).getAttribute("aria-pressed")) === "true");
 
-await kel.getByRole("link", { name: "Month", exact: true }).click();
+await kel.getByRole("button", { name: "Month", exact: true }).click();
 await kel.waitForURL(/view=month/);
 const grid = kel.getByRole("table");
 await grid.waitFor({ timeout: 15_000 });
@@ -56,7 +56,7 @@ await kel.goto(`${APP}/calendar?view=month&help=1`);
 await kel.getByRole("table").waitFor();
 const helpOnly = (await kel.getByRole("table").textContent()) ?? "";
 check("filters apply to the month view", helpOnly.includes("Today Match (demo)") && !helpOnly.includes("Busy A (demo)"));
-await kel.getByRole("link", { name: "Week", exact: true }).click();
+await kel.getByRole("button", { name: "Week", exact: true }).click();
 await kel.waitForURL(/view=week/);
 check("…and are kept when switching to Week", new URL(kel.url()).searchParams.get("help") === "1");
 const weekText = (await kel.textContent("main")) ?? "";
@@ -64,6 +64,26 @@ check("Week view shows seven days with today marked", (await kel.locator("ol > l
 await kel.getByRole("link", { name: "Next week" }).click();
 await kel.waitForURL(/week=/);
 check("Next week moves on a week", (await kel.locator('li[aria-current="date"]').count()) === 0);
+
+// The last choice is remembered for this person — on this device and any other — but not for anyone else.
+await kel.goto(`${APP}/calendar`);
+await kel.getByRole("form", { name: "Calendar view" }).waitFor();
+check("reopening Calendar shows the last view chosen (Week)", (await kel.getByRole("button", { name: "Week", exact: true }).getAttribute("aria-pressed")) === "true");
+const kel2 = await newPage();
+await signIn(kel2, "vol@test.local");
+await kel2.goto(`${APP}/calendar`);
+await kel2.getByRole("form", { name: "Calendar view" }).waitFor();
+check("…and on another device for the same person", (await kel2.getByRole("button", { name: "Week", exact: true }).getAttribute("aria-pressed")) === "true");
+const other = await newPage();
+await signIn(other, "admin@test.local");
+await other.goto(`${APP}/calendar`);
+await other.getByRole("form", { name: "Calendar view" }).waitFor();
+check("other people keep their own choice (List by default)", (await other.getByRole("button", { name: "List", exact: true }).getAttribute("aria-pressed")) === "true");
+await kel.getByRole("button", { name: "List", exact: true }).click();
+await kel.waitForURL(/view=list/);
+await kel.goto(`${APP}/calendar`);
+await kel.getByRole("form", { name: "Calendar view" }).waitFor();
+check("switching back to List is remembered too", (await kel.getByRole("button", { name: "List", exact: true }).getAttribute("aria-pressed")) === "true");
 
 // Accessibility and small screens
 const bad: string[] = [];
