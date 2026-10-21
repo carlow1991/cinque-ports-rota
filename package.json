@@ -12,7 +12,7 @@
     "test:unit": "vitest run tests/unit",
     "test:db": "vitest run tests/db",
     "check-env": "node scripts/check-env.mts",
-    "e2e": "tests/e2e/run.sh tests/e2e/hub-stage1.mts --build && for s in 2 3 4 5 6; do tests/e2e/run.sh tests/e2e/hub-stage$s.mts || exit 1; done && tests/e2e/run.sh tests/e2e/hub-demo.mts && tests/e2e/run.sh tests/e2e/hub-amendments.mts",
+    "e2e": "tests/e2e/run.sh tests/e2e/hub-stage1.mts --build && for s in 2 3 4 5 6; do tests/e2e/run.sh tests/e2e/hub-stage$s.mts || exit 1; done && tests/e2e/run.sh tests/e2e/hub-demo.mts && tests/e2e/run.sh tests/e2e/hub-amendments.mts && tests/e2e/run.sh tests/e2e/hub-calendar-views.mts",
     "e2e:demo": "tests/e2e/run.sh tests/e2e/hub-demo.mts"
   },
   "dependencies": {

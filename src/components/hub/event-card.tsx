@@ -7,7 +7,7 @@ import { categoryLabel, eventTimeLabel, type HubEvent } from "@/lib/domain/hub-c
 export function HubEventCard({ e, href, team, place, children }: { e: HubEvent; href: string; team?: string; place?: string; children?: ReactNode }) {
   const cancelled = e.status === "cancelled";
   return (
-    <article className={`rounded-xl border bg-white p-3 ${cancelled ? "border-line opacity-80" : e.volunteers_enabled ? "border-club-blue/40" : "border-line"}`}>
+    <article className={`rounded-xl border bg-white p-3 ${cancelled ? "border-dashed border-line" : e.volunteers_enabled ? "border-club-blue/40" : "border-line"}`}>
       <p className="text-sm font-semibold text-ink-muted">{eventTimeLabel(e)}</p>
       <h3 className="text-base font-semibold">
         <Link href={href} className={`text-club-blue underline ${cancelled ? "line-through" : ""}`}>{e.title}</Link>

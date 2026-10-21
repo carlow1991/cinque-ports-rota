@@ -73,3 +73,37 @@ describe("C09 — overlapping events are grouped, never merged", () => {
     expect(overlaps(9, 11, 10, 13)).toBe(true);
   });
 });
+
+import { eventsByDay, isMonthKey, monthGrid, monthLabel, shiftMonth, weekDays, weekLabel } from "@/lib/domain/hub-calendar";
+
+describe("calendar views", () => {
+  it("month grid: Monday-first full weeks covering the month", () => {
+    const g = monthGrid("2026-10"); // 1 Oct 2026 is a Thursday
+    expect(g[0][0]).toBe("2026-09-28");
+    expect(g.at(-1)!.at(-1)).toBe("2026-11-01");
+    expect(g).toHaveLength(5);
+    expect(g.every((w) => w.length === 7)).toBe(true);
+    expect(monthGrid("2027-02")).toHaveLength(4); // Feb 2027 starts on a Monday, 28 days
+    expect(monthGrid("2026-08")).toHaveLength(6);
+  });
+  it("month arithmetic and labels", () => {
+    expect(shiftMonth("2026-12", 1)).toBe("2027-01");
+    expect(shiftMonth("2026-01", -1)).toBe("2025-12");
+    expect(monthLabel("2026-10")).toBe("October 2026");
+    expect(isMonthKey("2026-13")).toBe(false);
+    expect(isMonthKey("2026-07")).toBe(true);
+  });
+  it("week days and labels, across a month end", () => {
+    expect(weekDays("2026-10-26")).toEqual(["2026-10-26", "2026-10-27", "2026-10-28", "2026-10-29", "2026-10-30", "2026-10-31", "2026-11-01"]);
+    expect(weekLabel("2026-10-19")).toBe("19–25 Oct 2026");
+    expect(weekLabel("2026-10-26")).toBe("26 Oct – 1 Nov 2026");
+  });
+  it("events land on their UK day, including late-evening BST and the clock-change weekend", () => {
+    const m = eventsByDay([
+      { starts_at: "2026-10-24T23:30:00Z" }, // 00:30 BST on Sun 25 Oct
+      { starts_at: "2026-10-25T23:30:00Z" }, // 23:30 GMT on Sun 25 Oct
+      { starts_at: "2026-10-25T09:00:00Z" },
+    ]);
+    expect(m.get("2026-10-25")?.length).toBe(3);
+  });
+});

@@ -99,3 +99,58 @@ export function shiftToDate(e: Pick<HubEvent, "starts_at" | "ends_at" | "kickoff
 export function overlaps(aStart: number, aEnd: number, bStart: number, bEnd: number): boolean {
   return aStart < bEnd && bStart < aEnd;
 }
+
+// ---------------------------------------------------------------------------
+// Calendar views (pure). Weeks start on Monday; all arithmetic is on UK calendar dates.
+// ---------------------------------------------------------------------------
+export type MonthKey = string; // "YYYY-MM"
+export const isMonthKey = (s: string): s is MonthKey => /^\d{4}-(0[1-9]|1[0-2])$/.test(s);
+export const monthOf = (d: DateKey): MonthKey => d.slice(0, 7);
+
+export function shiftMonth(m: MonthKey, by: number): MonthKey {
+  const [y, mo] = m.split("-").map(Number);
+  const t = new Date(Date.UTC(y, mo - 1 + by, 1));
+  return t.toISOString().slice(0, 7);
+}
+
+export function monthLabel(m: MonthKey): string {
+  const [y, mo] = m.split("-").map(Number);
+  return new Intl.DateTimeFormat("en-GB", { timeZone: "UTC", month: "long", year: "numeric" }).format(new Date(Date.UTC(y, mo - 1, 15)));
+}
+
+/** Full Monday-to-Sunday weeks covering the month (4–6 rows), including the edge days of the neighbouring months. */
+export function monthGrid(m: MonthKey): DateKey[][] {
+  const first = `${m}-01`;
+  const [y, mo] = m.split("-").map(Number);
+  const last = new Date(Date.UTC(y, mo, 0)).toISOString().slice(0, 10);
+  const dow = (d: DateKey) => (new Date(`${d}T12:00:00Z`).getUTCDay() + 6) % 7; // 0 = Monday
+  let day = addDays(first, -dow(first));
+  const weeks: DateKey[][] = [];
+  while (day <= last) {
+    weeks.push(Array.from({ length: 7 }, (_, i) => addDays(day, i)));
+    day = addDays(day, 7);
+  }
+  return weeks;
+}
+
+/** The seven days of the week starting on `monday`. */
+export const weekDays = (monday: DateKey): DateKey[] => Array.from({ length: 7 }, (_, i) => addDays(monday, i));
+
+/** Short label for a week: "19–25 Oct 2026" or "26 Oct – 1 Nov 2026". */
+export function weekLabel(monday: DateKey): string {
+  const sunday = addDays(monday, 6);
+  const f = (d: DateKey, o: Intl.DateTimeFormatOptions) => new Intl.DateTimeFormat("en-GB", { timeZone: "UTC", ...o }).format(new Date(`${d}T12:00:00Z`));
+  return monday.slice(0, 7) === sunday.slice(0, 7)
+    ? `${f(monday, { day: "numeric" })}–${f(sunday, { day: "numeric", month: "short", year: "numeric" })}`
+    : `${f(monday, { day: "numeric", month: "short" })} – ${f(sunday, { day: "numeric", month: "short", year: "numeric" })}`;
+}
+
+/** Events keyed by the UK day they start on. */
+export function eventsByDay<T extends Pick<HubEvent, "starts_at">>(events: T[]): Map<DateKey, T[]> {
+  const out = new Map<DateKey, T[]>();
+  for (const e of [...events].sort((a, b) => a.starts_at.localeCompare(b.starts_at))) {
+    const d = londonParts(new Date(e.starts_at)).dateKey;
+    out.set(d, [...(out.get(d) ?? []), e]);
+  }
+  return out;
+}

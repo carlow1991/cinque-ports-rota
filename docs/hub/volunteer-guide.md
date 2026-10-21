@@ -8,7 +8,7 @@ No passwords.
 - **Can you help?** — the club asked who could help at an event. Tap **Reply**, then **Yes** (whole event, or the times you're free) or **No**. Saying yes isn't a booking; an organiser will confirm with you.
 - **You're helping** — what you've agreed to. If you can no longer do it, open it and tap **I can no longer do this**.
 
-**Calendar** lists every club event — home and away, matches, training, meetings, socials. Events marked
+**Calendar** lists every club event — home and away, matches, training, meetings, socials — as a List, a Week or a Month grid (tap a day to see its events). Events marked
 **Help wanted** let you answer "Can you help?". Others are for information.
 
 **People** is the club directory: names, teams and club roles. Contact details only appear if that person
