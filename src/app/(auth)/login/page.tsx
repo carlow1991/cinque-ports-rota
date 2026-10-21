@@ -37,7 +37,10 @@ export default function LoginPage({ searchParams }: PageProps<"/login">) {
         </section>
 
         <p className="mt-6 text-center text-sm text-ink-muted">
-          Want to help out? Ask a club organiser to invite you.
+          Want to help out? <a href="/volunteer/apply" className="font-semibold text-club-blue underline">Offer to volunteer</a>.
+        </p>
+        <p className="mt-2 text-center text-sm">
+          <a href="/help#problems" className="font-semibold text-club-blue underline">Trouble signing in? Read the quick guide</a>
         </p>
       </div>
     </main>

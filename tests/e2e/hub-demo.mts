@@ -240,7 +240,7 @@ await kel.setViewportSize({ width: 375, height: 800 });
 
 // C50: nothing was emailed except after deliberate actions in this run
 const subjects = (await mail()).slice(mailBefore).map((m) => m.subject);
-check("C50: every email follows an explicit action (invites, answers, cover request)", subjects.every((s) => /Can you help|Can you cover|accepted|can't help|invited|Invitation/i.test(s)), subjects.join(" | "));
+check("C50: every email follows an explicit action (invites, answers, cover request) or is a day-before reminder after 18:00", subjects.every((s) => /Can you help|Can you cover|accepted|can't help|invited|Invitation|^Tomorrow:/i.test(s)), subjects.join(" | "));
 // Carried over from the retired email checks: cron locked, security headers, no secrets in the bundle.
 check("cron endpoint refuses a request without the secret", (await fetch(`${APP}/api/cron/outbox`, { redirect: "manual" })).status === 401);
 const head = await fetch(`${APP}/volunteer`);

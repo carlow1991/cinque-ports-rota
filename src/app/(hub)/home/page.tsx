@@ -100,6 +100,7 @@ async function Home() {
         <p className="mt-2"><Link className="text-sm font-semibold text-club-blue underline" href="/calendar">Full calendar</Link></p>
       </Card>
       <p className="text-sm"><Link className="font-semibold text-club-blue underline" href="/opportunities">Club roles looking for help</Link></p>
+      <p className="text-sm"><Link className="font-semibold text-club-blue underline" href="/help">New to the Hub? How it works (2-minute read)</Link></p>
     </section>
   );
 }

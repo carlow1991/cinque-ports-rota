@@ -15,6 +15,7 @@ export default function NoAccessPage() {
           You&apos;re signed in, but this email isn&apos;t set up for the volunteer rota, or the account has been paused.
           Please contact a club organiser if you think this is a mistake.
         </p>
+        <p className="mb-4 text-sm"><a href="/help#problems" className="font-semibold text-club-blue underline">What to do next (quick guide)</a></p>
         <form action="/auth/signout" method="post">
           <button
             type="submit"

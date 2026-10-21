@@ -22,4 +22,6 @@ phone, what you'd enjoy helping with, and when you're usually free (a guide only
 **Emails** only come when someone asks you to help, when something you agreed to changes, and a reminder
 the day before. Not for anything else.
 
-Questions or want your details removed? Contact the club secretary.
+The same guide is in the Hub: tap **Help** at the top of any page (it also works before you sign in, at /help).
+
+Questions or want your details removed? Use the club contact at the bottom of the Help page.

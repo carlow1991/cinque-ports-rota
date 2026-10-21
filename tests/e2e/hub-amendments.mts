@@ -2,6 +2,7 @@
  * Volunteer Hub · amendments (19 Oct 2026): several contact methods, club vs team-management roles,
  * team league/division.   tests/e2e/run.sh tests/e2e/hub-amendments.mts [--build]
  */
+import AxeBuilder from "@axe-core/playwright";
 import { APP, startChecks } from "./support/hub.mts";
 
 const { q, check, newPage, signIn, noHorizontalScroll, finish } = await startChecks("Hub amendments");
@@ -63,4 +64,24 @@ await kel.reload();
 await kel.getByRole("heading", { name: "Team management" }).waitFor({ timeout: 15_000 });
 const main2 = (await kel.textContent("main")) ?? "";
 check("the manager isn't listed twice on the team card", !main2.includes("Reserves Manager (post)") && main2.includes("Scott (demo) (Manager)"));
+// Self-service guide: reachable from the header and the sign-in page, works signed out, no personal data.
+await kel.goto(`${APP}/home`);
+await kel.getByRole("link", { name: "Help", exact: true }).click();
+await kel.waitForURL(/\/help$/, { timeout: 15_000 });
+check("Help link in the Hub header opens the guide", (await kel.getByRole("heading", { name: "How to use the Volunteer Hub" }).count()) === 1);
+const anon = await newPage();
+await anon.goto(`${APP}/login`);
+await anon.getByRole("link", { name: /Trouble signing in/ }).click();
+await anon.waitForURL(/\/help#problems$/, { timeout: 15_000 });
+await anon.getByText("Still stuck?").waitFor({ timeout: 15_000 });
+const guide = (await anon.textContent("main")) ?? "";
+check("the guide works signed out (from the sign-in page)", guide.includes("I didn't get a sign-in code"));
+check("the guide shows the club contact and no personal data", !/Scott|Kelly|Carl|vol@test|admin@test/.test(guide));
+await anon.getByText("I didn't get a sign-in code").click();
+check("questions open with a tap", await anon.getByText(/Check spam or junk/).isVisible());
+const ax = await new AxeBuilder({ page: anon }).withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa"]).analyze();
+const axBad = ax.violations.filter((v) => v.impact === "serious" || v.impact === "critical");
+check("guide has no serious accessibility problems", axBad.length === 0, axBad.map((v) => v.id).join(", "));
+await anon.setViewportSize({ width: 320, height: 640 });
+check("guide fits a 320px phone", await noHorizontalScroll(anon));
 await finish();

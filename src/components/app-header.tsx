@@ -13,7 +13,10 @@ export function AppHeader({ title, homeHref, switcher }: { title: string; homeHr
             Cinque Ports FC <span className="block text-xs font-normal opacity-90">{title}</span>
           </span>
         </Link>
-        {switcher ? <div className="ml-auto">{switcher}</div> : null}
+        <div className="ml-auto flex items-center gap-2">
+          <Link href="/help" className="inline-flex min-h-11 items-center rounded-lg px-2 text-sm font-semibold text-white underline-offset-4 hover:underline">Help</Link>
+          {switcher}
+        </div>
       </div>
     </header>
   );

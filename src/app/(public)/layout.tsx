@@ -13,6 +13,7 @@ export default function PublicLayout({ children }: LayoutProps<"/">) {
           <nav aria-label="Public" className="ml-auto flex flex-wrap gap-x-3 text-sm">
             <Link className="inline-flex min-h-11 items-center underline-offset-4 hover:underline" href="/volunteer">Opportunities</Link>
             <Link className="inline-flex min-h-11 items-center underline-offset-4 hover:underline" href="/volunteer/apply">Apply</Link>
+            <Link className="inline-flex min-h-11 items-center underline-offset-4 hover:underline" href="/help">Help</Link>
             <Link className="inline-flex min-h-11 items-center underline-offset-4 hover:underline" href="/privacy">Privacy</Link>
             <Link className="inline-flex min-h-11 items-center underline-offset-4 hover:underline" href="/login">Sign in</Link>
           </nav>
